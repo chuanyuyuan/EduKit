@@ -8,17 +8,23 @@ RainClassroomAttendanceAnalyzer — Streamlit-based attendance analysis tool for
 
 ## Commands
 
-- **Run locally**: `python -m streamlit run app.py`
-- **Run offline script**: `python attendance_analyzer.py <input.xlsx>`
-- **Dependencies**: `pip install streamlit openpyxl pandas`
+- **Run Streamlit web app**: `python -m streamlit run app.py`
+- **Run GUI desktop app**: `python attendance_gui.py`
+- **Build exe**: `pip install pyinstaller && python build_exe.py`
+- **Run offline CLI script**: `python attendance_analyzer.py <input.xlsx>`
+- **Dependencies**: `pip install streamlit openpyxl pandas pyinstaller`
 
 ## Project Structure
 
 ```
 RainClassroomAttendanceAnalyzer/
-├── app.py                    # Streamlit web app (main entry)
+├── app.py                    # Streamlit web app
+├── attendance_gui.py         # tkinter GUI desktop app
 ├── attendance_analyzer.py    # CLI version of the parser
+├── build_exe.py              # PyInstaller build script
 ├── 测试表格.xlsx             # Demo data file
+├── dist/                     # Built exe output (gitignored)
+├── requirements.txt
 ├── README.md
 └── CLAUDE.md
 ```

@@ -1,0 +1,7 @@
+# build artifacts
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+~$*.xlsx
