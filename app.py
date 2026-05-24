@@ -27,6 +27,9 @@ def col_idx(col):
 
 
 def parse_summary(wb):
+    if not wb.sheetnames:
+        raise ValueError('Excel 文件中没有找到任何工作表。')
+
     ws = wb[wb.sheetnames[0]]
 
     row2 = {}
@@ -34,15 +37,24 @@ def parse_summary(wb):
         if cell.value:
             row2[cell.column_letter] = str(cell.value)
 
+    if not row2:
+        raise ValueError('汇总表第 2 行为空，未找到子表头信息。请确认上传的是雨课堂批量导出文件（含汇总页）。')
+
     row1 = {}
     for cell in ws[1]:
         if cell.value:
             row1[cell.column_letter] = str(cell.value)
 
+    if not row1:
+        raise ValueError('汇总表第 1 行为空，未找到课堂名称合并表头。')
+
     sign_cols = sorted(
         [c for c, v in row2.items() if v == '签到方式'],
         key=col_idx
     )
+    if not sign_cols:
+        raise ValueError('未找到"签到方式"列。请确认上传的是雨课堂导出的"汇总-数据表"文件。')
+
     score_cols = sorted(
         [c for c, v in row2.items() if v.startswith('得分')],
         key=col_idx
@@ -106,10 +118,12 @@ def parse_summary(wb):
 def parse_sub_sheets(wb, session_keys):
     leave_data = {}
     idx = 0
+    found = False
 
     for name in wb.sheetnames:
         if '课堂情况' not in name:
             continue
+        found = True
         if idx >= len(session_keys):
             break
 
@@ -131,7 +145,63 @@ def parse_sub_sheets(wb, session_keys):
             if sid and remark in ('病假', '事假'):
                 leave_data[(session_key, sid)] = remark
 
+    if not found:
+        raise ValueError('未找到名称包含"课堂情况"的子表。请确认上传的是雨课堂批量导出文件（含每次课的课堂情况子表）。')
+
     return leave_data
+
+
+def parse_single_session(wb):
+    """Parse a single-session export file (no summary page, just one 课堂情况 sheet)."""
+    ws = wb[wb.sheetnames[0]]
+
+    raw_name = str(ws.cell(1, 1).value or '').strip()
+    if not raw_name:
+        raise ValueError('文件第 1 行为空，未找到课堂名称。')
+
+    row3_col5 = str(ws.cell(3, 5).value or '')
+    if '签到方式' not in row3_col5:
+        raise ValueError('第 3 行未找到"签到方式"列，请确认是雨课堂导出的课堂数据表。')
+
+    students = []
+    for row_idx in range(5, ws.max_row + 1):
+        sid = str(ws.cell(row_idx, 1).value or '').strip()
+        name = str(ws.cell(row_idx, 4).value or '').strip()
+        if not sid and not name:
+            continue
+        students.append({
+            'id': sid,
+            'name': name,
+            'attendance': {},
+            'scores': {},
+        })
+        # Directly read sign and remark from this row
+        students[-1]['_sign'] = str(ws.cell(row_idx, 5).value or '')
+        students[-1]['_remark'] = str(ws.cell(row_idx, 7).value or '')
+
+    session_keys = [raw_name]
+    session_sign_map = OrderedDict([(raw_name, raw_name)])
+    session_score_map = OrderedDict()
+
+    leave_data = {}
+    for s in students:
+        s['attendance'][raw_name] = s.pop('_sign')
+        remark = s.pop('_remark')
+        if remark in ('病假', '事假'):
+            leave_data[(raw_name, s['id'])] = remark
+
+    return session_keys, session_sign_map, session_score_map, students, leave_data
+
+
+def parse_file(wb):
+    """Auto-detect file type (full export or single session) and parse."""
+    # Detect: if first sheet name contains 课堂情况 and there's only 1 sheet, it's single-session
+    if len(wb.sheetnames) == 1 and '课堂情况' in wb.sheetnames[0]:
+        return parse_single_session(wb)
+    # Otherwise treat as full export
+    sk, ssm, sscm, students = parse_summary(wb)
+    ld = parse_sub_sheets(wb, sk)
+    return sk, ssm, sscm, students, ld
 
 
 def generate_output(session_keys, session_sign_map, session_score_map, students, leave_data):
@@ -314,7 +384,7 @@ def generate_output(session_keys, session_sign_map, session_score_map, students,
 DEMO_FILE = '测试表格.xlsx'
 
 st.title("长江雨课堂考勤数据分析工具")
-st.markdown("上传雨课堂导出的 Excel 文件（汇总页 + 子表），自动生成考勤明细和课堂表现统计。")
+st.markdown("上传雨课堂导出的 Excel 文件，自动生成考勤明细和课堂表现统计。")
 
 st.markdown("""
 **适用平台：** [长江雨课堂](https://changjiang.yuketang.cn/web/?index)
@@ -330,50 +400,11 @@ st.markdown("""
 - 点击下载按钮即可获取带颜色标注的完整 Excel 文件
 """)
 
-uploaded = st.file_uploader(
-    "选择雨课堂导出的 Excel 文件",
-    type=['xlsx'],
-)
+mode = st.radio("模式", ["单文件模式", "合并模式"], horizontal=True)
 
-# ── Determine data source: uploaded file or demo ──
-workbook_source = None
-source_label = None
-if uploaded:
-    workbook_source = load_workbook(uploaded, data_only=True)
-    source_label = "upload"
-    st.session_state.show_demo = False
-elif st.session_state.get("show_demo"):
-    demo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), DEMO_FILE)
-    if os.path.exists(demo_path):
-        workbook_source = load_workbook(demo_path, data_only=True)
-        source_label = "demo"
 
-if not uploaded and st.button("💡 加载示例数据看看效果", use_container_width=True):
-    st.session_state.show_demo = True
-    st.rerun()
-
-# ── Process and show results ──
-if workbook_source:
-    if source_label == "demo":
-        st.info("当前展示的是示例数据，你可以上传自己的文件替换。")
-
-    status = st.status("正在解析...", expanded=True)
-    with status:
-        st.write("读取 Excel 文件...")
-        wb = workbook_source
-
-        st.write("解析汇总表（签到方式、得分列映射）...")
-        session_keys, session_sign_map, session_score_map, students = parse_summary(wb)
-
-        st.write("解析子表（病假/事假）...")
-        leave_data = parse_sub_sheets(wb, session_keys)
-        wb.close()
-
-        st.write("生成输出文件...")
-        buf, info = generate_output(session_keys, session_sign_map, session_score_map, students, leave_data)
-    status.update(label="解析完成", state="complete", expanded=False)
-
-    # ── 预览表格 ──
+def show_results(buf, info):
+    """显示预览表格和下载按钮"""
     st.subheader(f"考勤概况 — 共 {info['session_count']} 次课，{len(info['students'])} 名学生")
 
     tab1, tab2, tab3 = st.tabs(["考勤明细", "课堂表现", "统计摘要"])
@@ -423,7 +454,6 @@ if workbook_source:
             })
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
-    # ── 下载 ──
     st.divider()
     st.download_button(
         label="📥 下载考勤明细 Excel",
@@ -432,5 +462,125 @@ if workbook_source:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary",
     )
-else:
-    st.info("请上传文件开始分析。")
+
+
+# ── 单文件模式 ──
+if mode == "单文件模式":
+    uploaded = st.file_uploader("选择雨课堂导出的 Excel 文件（仅支持 .xlsx 格式）")
+
+    workbook_source = None
+    source_label = None
+    if uploaded:
+        if not uploaded.name.endswith('.xlsx'):
+            st.error(f'不支持的文件格式："{uploaded.name}"，请上传 .xlsx 文件。')
+        else:
+            try:
+                workbook_source = load_workbook(uploaded, data_only=True)
+                source_label = "upload"
+                st.session_state.show_demo = False
+            except Exception:
+                st.error("无法读取该文件，请确认上传的是有效的 .xlsx 格式文件。")
+    elif st.session_state.get("show_demo"):
+        demo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), DEMO_FILE)
+        if os.path.exists(demo_path):
+            try:
+                workbook_source = load_workbook(demo_path, data_only=True)
+                source_label = "demo"
+            except Exception:
+                st.error("无法读取示例文件。")
+                st.session_state.show_demo = False
+
+    if not uploaded and st.button("💡 加载示例数据看看效果", use_container_width=True):
+        st.session_state.show_demo = True
+        st.rerun()
+
+    # ── Process single file ──
+    if workbook_source:
+        if source_label == "demo":
+            st.info("当前展示的是示例数据，你可以上传自己的文件替换。")
+
+        try:
+            status = st.status("正在解析...", expanded=True)
+            with status:
+                st.write("读取 Excel 文件...")
+                wb = workbook_source
+                session_keys, session_sign_map, session_score_map, students, leave_data = parse_file(wb)
+                wb.close()
+                st.write("生成输出文件...")
+                buf, info = generate_output(session_keys, session_sign_map, session_score_map, students, leave_data)
+            status.update(label="解析完成", state="complete", expanded=False)
+            show_results(buf, info)
+        except ValueError as e:
+            st.error(str(e))
+        except Exception:
+            st.error("解析过程出现未知错误，请确认上传的是雨课堂批量导出的汇总数据表（.xlsx）。")
+    else:
+        st.info("请上传文件开始分析。")
+
+# ── 合并模式 ──
+elif mode == "合并模式":
+    col1, col2 = st.columns(2)
+    with col1:
+        f1 = st.file_uploader("选择第一个考勤文件", key="f1")
+    with col2:
+        f2 = st.file_uploader("选择第二个考勤文件", key="f2")
+
+    if f1 and f2:
+        errors = []
+        if not f1.name.endswith('.xlsx'):
+            errors.append(f'文件一格式不支持："{f1.name}"')
+        if not f2.name.endswith('.xlsx'):
+            errors.append(f'文件二格式不支持："{f2.name}"')
+        if errors:
+            st.error('\n'.join(errors))
+            st.stop()
+
+        try:
+            status = st.status("正在解析...", expanded=True)
+            with status:
+                st.write("解析文件一...")
+                wb1 = load_workbook(f1, data_only=True)
+                sk1, ssm1, sscm1, students1, ld1 = parse_file(wb1)
+                wb1.close()
+
+                st.write("解析文件二...")
+                wb2 = load_workbook(f2, data_only=True)
+                sk2, ssm2, sscm2, students2, ld2 = parse_file(wb2)
+                wb2.close()
+
+                st.write("验证学生信息一致性...")
+                ids1 = [(s['id'], s['name']) for s in students1]
+                ids2 = [(s['id'], s['name']) for s in students2]
+                if ids1 != ids2:
+                    set1, set2 = set(ids1), set(ids2)
+                    diff = []
+                    for s in set1 - set2:
+                        diff.append(f"  文件一有但文件二缺少：学号 {s[0]} {s[1]}")
+                    for s in set2 - set1:
+                        diff.append(f"  文件二有但文件一缺少：学号 {s[0]} {s[1]}")
+                    raise ValueError("两个文件的学生名单不一致：\n" + "\n".join(diff))
+
+                st.write("合并数据...")
+                session_keys = sk1 + sk2
+                session_sign_map = OrderedDict(list(ssm1.items()) + list(ssm2.items()))
+                session_score_map = OrderedDict(list(sscm1.items()) + list(sscm2.items()))
+                students = []
+                for s1, s2 in zip(students1, students2):
+                    students.append({
+                        'id': s1['id'],
+                        'name': s1['name'],
+                        'attendance': {**s1['attendance'], **s2['attendance']},
+                        'scores': {**s1['scores'], **s2['scores']},
+                    })
+                leave_data = {**ld1, **ld2}
+
+                st.write("生成输出文件...")
+                buf, info = generate_output(session_keys, session_sign_map, session_score_map, students, leave_data)
+            status.update(label="解析完成", state="complete", expanded=False)
+            show_results(buf, info)
+        except ValueError as e:
+            st.error(str(e))
+        except Exception:
+            st.error("解析过程出现未知错误，请确认上传的是雨课堂批量导出的汇总数据表（.xlsx）。")
+    else:
+        st.info("请上传两个考勤文件开始合并分析。")
