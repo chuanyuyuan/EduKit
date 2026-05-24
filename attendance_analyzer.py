@@ -94,7 +94,7 @@ def parse_summary(wb):
         for sk, sc in session_score_map.items():
             raw = cells.get(sc, '')
             try:
-                rec['scores'][sk] = float(raw) if raw else None
+                rec['scores'][sk] = int(float(raw)) if raw else None
             except ValueError:
                 rec['scores'][sk] = None
         students.append(rec)

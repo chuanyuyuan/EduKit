@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -c \"import openpyxl; print\\('openpyxl OK'\\); import pandas; print\\('pandas OK'\\)\")",
+      "Bash(python3 -c \"import openpyxl; print\\('openpyxl OK'\\); import pandas; print\\('pandas OK'\\)\")",
+      "Bash(pip list *)",
+      "Bash(python -c ' *)",
+      "Bash(python)",
+      "Bash(python -X utf8)",
+      "Bash(python -X utf8 attendance_analyzer.py)",
+      "Bash(python -X utf8 attendance_analyzer.py \"AI驱动型智能机器人技术-2026春-计算机2309-计算机231---汇总-数据表-20260524011657_8717586.xlsx\")",
+      "Bash(python -X utf8 attendance_analyzer.py \"大数据技术-2026春-计算机2305-计算机230---汇总-数据表-20260523144705_8716344.xlsx\")",
+      "Bash(python -X utf8 -c ' *)",
+      "Bash(pip show *)",
+      "Bash(streamlit run *)",
+      "Bash(python -m streamlit run app.py --server.headless true)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(python -X utf8 generate_demo.py)",
+      "Bash(python -X utf8 attendance_analyzer.py \"示例数据-人工智能导论-2026春-计算机2301-汇总-数据表.xlsx\")",
+      "Bash(python -X utf8 attendance_analyzer.py \"测试表格.xlsx\")"
+    ]
+  }
+}
