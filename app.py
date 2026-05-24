@@ -15,6 +15,11 @@ from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill
 
 st.set_page_config(page_title="雨课堂考勤分析", layout="wide")
+st.markdown("""
+<style>
+    .block-container { padding-top: 2.5rem; padding-bottom: 3rem; }
+</style>
+""", unsafe_allow_html=True)
 
 # ── 核心解析函数（与本地版一致） ──
 
@@ -99,6 +104,8 @@ def parse_summary(wb):
         rec = {
             'id': sid,
             'name': name,
+            'dept': cells.get('B', ''),
+            'cls': cells.get('C', ''),
             'attendance': {},
             'scores': {},
         }
@@ -172,6 +179,8 @@ def parse_single_session(wb):
         students.append({
             'id': sid,
             'name': name,
+            'dept': '',
+            'cls': '',
             'attendance': {},
             'scores': {},
         })
@@ -376,7 +385,94 @@ def generate_output(session_keys, session_sign_map, session_score_map, students,
         'preview_attendance': preview_attendance,
         'score_headers': ['学号', '姓名'] + score_names + ['总分'],
         'preview_scores': preview_scores,
+        'session_keys': session_keys,
+        'leave_data': leave_data,
+        'process_score_buf': generate_process_score_sheet(students, session_keys, leave_data),
     }
+
+
+# ── 过程性成绩记载表 ──
+
+PRESENT_SET = {'扫二维码', '“正在上课”提示', '教师添加', '课堂暗号'}
+
+
+def generate_process_score_sheet(students, session_keys, leave_data):
+    """生成过程性成绩记载表（✓/✗/△），与样表格式一致"""
+    from openpyxl.styles import Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    owb = Workbook()
+    ows = owb.active
+    ows.title = '过程性成绩记载表'
+
+    # 列布局：序号(A) 学号(B) 姓名(C) 性别(D) 专业(E) 班级(F) 课堂1(G) ... 成绩 备注
+    n_sessions = len(session_keys)
+    session_start = 7  # column G
+    score_col = max(session_start + n_sessions, 26)  # at least Z
+    remark_col = score_col + 1
+
+    headers = ['序号', '学号', '姓名', '性别', '专业', '班级'] + list(session_keys)
+    while len(headers) < score_col - 1:
+        headers.append('')
+    headers.append('成绩')
+    headers.append('备注')
+    ows.append(headers)
+
+    for i, s in enumerate(students, start=1):
+        row = [i, s['id'], s['name'], '', '', s['cls']]
+        for sk in session_keys:
+            raw = s['attendance'].get(sk, '')
+            if raw in PRESENT_SET:
+                row.append('✓')
+            elif raw == '未上课':
+                leave = leave_data.get((sk, s['id']))
+                row.append('△' if leave in ('病假', '事假') else '✗')
+            else:
+                row.append(raw)
+        while len(row) < score_col - 1:
+            row.append('')
+        row.append('')  # 成绩
+        row.append('')  # 备注
+        ows.append(row)
+
+    # ── 样式：宋体 9pt、居中、细边框 ──
+    font_song = Font(name='SimSun', size=9)
+    align_center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin'),
+    )
+
+    for row in ows.iter_rows(min_row=1, max_row=ows.max_row,
+                              min_col=1, max_col=remark_col):
+        for cell in row:
+            cell.font = font_song
+            cell.alignment = align_center
+            cell.border = thin_border
+
+    # ── 列宽（参照样表）──
+    col_widths = {
+        'A': 2.85, 'B': 12.75, 'C': 11.26, 'D': 3.25,
+        'E': 15.87, 'F': 15.47,
+    }
+    for col_letter, width in col_widths.items():
+        ows.column_dimensions[col_letter].width = width
+    for i in range(session_start, score_col):
+        ows.column_dimensions[get_column_letter(i)].width = 3.69
+    ows.column_dimensions[get_column_letter(score_col)].width = 5.38
+    ows.column_dimensions[get_column_letter(remark_col)].width = 9.77
+
+    # ── 行高 ──
+    ows.row_dimensions[1].height = 22.6
+    for r in range(2, ows.max_row + 1):
+        ows.row_dimensions[r].height = 14.3
+
+    buf = BytesIO()
+    owb.save(buf)
+    buf.seek(0)
+    return buf
 
 
 # ── Streamlit UI ──
@@ -389,6 +485,10 @@ st.markdown("上传雨课堂导出的 Excel 文件，自动生成考勤明细和
 st.markdown("""
 **适用平台：** [长江雨课堂](https://changjiang.yuketang.cn/web/?index)
 
+**支持的文件类型：**
+- 批量导出的汇总数据表（含汇总页 + 课堂情况子表）
+- 单次课导出的课堂数据表（自动识别）
+
 **原始文件获取方式：**
 1. 登录长江雨课堂官网，进入你授课的班级
 2. 点击 **批量导出数据**
@@ -396,11 +496,20 @@ st.markdown("""
 4. 下载导出的 Excel 文件（即 `.xlsx` 格式的汇总数据表）
 
 **上传后：**
-- 页面自动解析并展示考勤明细、课堂表现得分和统计摘要
-- 点击下载按钮即可获取带颜色标注的完整 Excel 文件
+- 自动解析并分 tab 展示考勤明细、课堂表现得分和统计摘要
+- 支持单文件分析和两表合并（如理论班 + 实验班）
+- 提供两种下载：考勤明细 Excel（颜色标注）和过程性成绩记载表（✓/✗/△）
 """)
 
-mode = st.radio("模式", ["单文件模式", "合并模式"], horizontal=True)
+st.markdown("""
+<style>
+    div[data-testid="stSegmentedControl"] button {
+        font-size: 1.1rem; padding: 0.25rem 1.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+mode = st.segmented_control("模式", ["单文件模式", "合并模式"],
+                            default="单文件模式", label_visibility="collapsed")
 
 
 def show_results(buf, info):
@@ -455,13 +564,24 @@ def show_results(buf, info):
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
     st.divider()
-    st.download_button(
-        label="📥 下载考勤明细 Excel",
-        data=buf,
-        file_name="学生考勤明细表.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary",
-    )
+    col_dl1, col_dl2 = st.columns(2)
+    with col_dl1:
+        st.download_button(
+            label="📥 下载考勤明细 Excel",
+            data=buf,
+            file_name="学生考勤明细表.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+            use_container_width=True,
+        )
+    with col_dl2:
+        st.download_button(
+            label="📋 下载过程性成绩记载表",
+            data=info['process_score_buf'],
+            file_name="过程性成绩记载表.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
 
 
 # ── 单文件模式 ──
@@ -490,9 +610,10 @@ if mode == "单文件模式":
                 st.error("无法读取示例文件。")
                 st.session_state.show_demo = False
 
-    if not uploaded and st.button("💡 加载示例数据看看效果", use_container_width=True):
-        st.session_state.show_demo = True
-        st.rerun()
+    if not uploaded and not st.session_state.get("show_demo"):
+        if st.button("💡 加载示例数据看看效果", use_container_width=True):
+            st.session_state.show_demo = True
+            st.rerun()
 
     # ── Process single file ──
     if workbook_source:
