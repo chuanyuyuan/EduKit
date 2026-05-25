@@ -60,6 +60,18 @@ exe 生成在 `dist/` 目录，双击即可运行，无需 Python 环境。
 
 > 已发布的 exe 可从 [Releases](https://github.com/chuanyuyuan/RainClassroomAttendanceAnalyzer/releases) 页面直接下载。
 
+### 自动打包（CI/CD）
+
+推送 `v*` 标签到 GitHub 时自动触发：
+- 运行测试
+- 打包为 exe
+- 创建 Release 并上传附件
+
+```bash
+git tag v1.1.0
+git push origin --tags
+```
+
 ## 目录结构
 
 ```
@@ -67,6 +79,8 @@ RainClassroomAttendanceAnalyzer/
 ├── app.py                    # Streamlit 在线工具
 ├── attendance_gui.py         # tkinter 桌面版
 ├── attendance_analyzer.py    # CLI 命令行版
+├── .github/workflows/
+│   └── release.yml           # CI/CD 自动打包发布
 ├── build_exe.py              # PyInstaller 打包脚本
 ├── tests/
 │   ├── test_app.py           # Streamlit 版测试

@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - run: pip install pyinstaller openpyxl
+
+      - name: 运行测试
+        run: |
+          python tests/test_analyzer.py
+          python tests/test_gui.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: 打包 exe
+        run: python build_exe.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AttendanceAnalyzerGUI.exe
+          body: |
+            自动打包发布。
+            下载 `AttendanceAnalyzerGUI.exe` 即可运行，无需 Python 环境。

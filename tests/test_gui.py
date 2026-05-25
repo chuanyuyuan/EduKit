@@ -85,11 +85,13 @@ def parse(path):
 
 
 def merge(stus1, stus2):
+    """Merge two student lists by ID (order-independent)."""
+    stus2_by_id = {s['id']: s for s in stus2}
     return [{
         'id': s1['id'], 'name': s1['name'], 'cls': s1['cls'],
-        'attendance': {**s1['attendance'], **s2['attendance']},
-        'scores': {**s1['scores'], **s2['scores']},
-    } for s1, s2 in zip(stus1, stus2)]
+        'attendance': {**s1['attendance'], **stus2_by_id[s1['id']]['attendance']},
+        'scores': {**s1['scores'], **stus2_by_id[s1['id']]['scores']},
+    } for s1 in stus1]
 
 
 def run_merge(path1, path2):

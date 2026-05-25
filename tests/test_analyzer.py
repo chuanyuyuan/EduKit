@@ -85,11 +85,13 @@ def parse(path):
 
 
 def merge(stus1, stus2):
+    """Merge two student lists by ID (order-independent)."""
+    stus2_by_id = {s['id']: s for s in stus2}
     return [{
         'id': s1['id'], 'name': s1['name'], 'cls': s1['cls'],
-        'attendance': {**s1['attendance'], **s2['attendance']},
-        'scores': {**s1['scores'], **s2['scores']},
-    } for s1, s2 in zip(stus1, stus2)]
+        'attendance': {**s1['attendance'], **stus2_by_id[s1['id']]['attendance']},
+        'scores': {**s1['scores'], **stus2_by_id[s1['id']]['scores']},
+    } for s1 in stus1]
 
 
 def run_merge(path1, path2):
@@ -301,6 +303,63 @@ for r in range(2, ps_ws.max_row + 1):
     check(sid.startswith('0423'), f'{name} 学号以 0423 开头: {sid}')
 
 ps_wb.close()
+
+# ════════════════════════════════════════════
+# TEST 11: 合并模式 — 顺序无关
+# ════════════════════════════════════════════
+section('Test 11: 合并模式 — 顺序无关')
+
+# 解析两个汇总表，把第二个反转顺序
+wb1 = load_workbook(M1, data_only=True)
+sk1, ssm1, sscm1, stus1, ld1 = analyzer.parse_file(wb1)
+wb1.close()
+
+wb2 = load_workbook(M2, data_only=True)
+sk2, ssm2, sscm2, stus2_orig, ld2 = analyzer.parse_file(wb2)
+wb2.close()
+
+# 反转 students2 的顺序
+stus2 = list(reversed(stus2_orig))
+
+# 用新顺序走合并流程
+ids1 = {(s['id'], s['name']) for s in stus1}
+ids2_set = {(s['id'], s['name']) for s in stus2}
+check(ids1 == ids2_set, '顺序不同但集合一致')
+
+stus2_by_id = {s['id']: s for s in stus2}
+merged = []
+for s1 in stus1:
+    s2 = stus2_by_id[s1['id']]
+    merged.append({
+        'id': s1['id'],
+        'name': s1['name'],
+        'cls': s1['cls'],
+        'attendance': {**s1['attendance'], **s2['attendance']},
+        'scores': {**s1['scores'], **s2['scores']},
+    })
+check_eq(len(merged), 10, '合并后 10 名学生')
+check_eq(len(sk1) + len(sk2), 6, '合并后 6 次课')
+check(merged[0]['id'] == stus1[0]['id'], '合并结果按文件一顺序排列')
+
+# ════════════════════════════════════════════
+# TEST 12: 姓名不一致检测
+# ════════════════════════════════════════════
+section('Test 12: 姓名不一致检测')
+
+_, _, _, stus_a, _ = parse(S1)
+_, _, _, stus_b, _ = parse(M1)
+# 改文件一的第一个学生姓名
+bad_name = [dict(s) for s in stus_a]
+bad_name[0]['name'] = '张改'
+name1_by_id = {s['id']: s['name'] for s in bad_name}
+name_mismatch_ids = set()
+diff = []
+for s in stus_b:
+    if s['id'] in name1_by_id and name1_by_id[s['id']] != s['name']:
+        diff.append(f'学号 {s["id"]} 姓名不一致')
+        name_mismatch_ids.add(s['id'])
+check(len(diff) > 0, '姓名不一致时检测到差异')
+check(not name_mismatch_ids - {'04230001'}, f'只有学号 04230001 被标记为姓名不一致 ({name_mismatch_ids})')
 
 # ════════════════════════════════════════════
 section('SUMMARY')

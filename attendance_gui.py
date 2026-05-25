@@ -646,23 +646,33 @@ class AttendanceGUI:
                 sk2, ssm2, sscm2, students2, ld2 = parse_file(wb2)
                 wb2.close()
 
-                # 校验学生名单一致性
-                ids1 = [(s['id'], s['name']) for s in students1]
-                ids2 = [(s['id'], s['name']) for s in students2]
+                # 校验学生名单一致性（不要求顺序一致）
+                ids1 = {(s['id'], s['name']) for s in students1}
+                ids2 = {(s['id'], s['name']) for s in students2}
                 if ids1 != ids2:
-                    set1, set2 = set(ids1), set(ids2)
                     diff = []
-                    for s in set1 - set2:
-                        diff.append(f'文件一有但文件二缺少：学号 {s[0]} {s[1]}')
-                    for s in set2 - set1:
-                        diff.append(f'文件二有但文件一缺少：学号 {s[0]} {s[1]}')
+                    # 检测同 ID 不同姓名
+                    name1_by_id = {s['id']: s['name'] for s in students1}
+                    name_mismatch_ids = set()
+                    for s in students2:
+                        if s['id'] in name1_by_id and name1_by_id[s['id']] != s['name']:
+                            diff.append(f'  学号 {s["id"]} 姓名不一致：文件一为"{name1_by_id[s["id"]]}"，文件二为"{s["name"]}"')
+                            name_mismatch_ids.add(s['id'])
+                    for sid, sname in ids1 - ids2:
+                        if sid not in name_mismatch_ids:
+                            diff.append(f'  文件一有但文件二缺少：学号 {sid} {sname}')
+                    for sid, sname in ids2 - ids1:
+                        if sid not in name_mismatch_ids:
+                            diff.append(f'  文件二有但文件一缺少：学号 {sid} {sname}')
                     raise ValueError('两个文件的学生名单不一致：\n' + '\n'.join(diff))
 
                 session_keys = sk1 + sk2
                 session_sign_map = OrderedDict(list(ssm1.items()) + list(ssm2.items()))
                 session_score_map = OrderedDict(list(sscm1.items()) + list(sscm2.items()))
+                stus2_by_id = {s['id']: s for s in students2}
                 students = []
-                for s1, s2 in zip(students1, students2):
+                for s1 in students1:
+                    s2 = stus2_by_id[s1['id']]
                     students.append({
                         'id': s1['id'],
                         'name': s1['name'],
