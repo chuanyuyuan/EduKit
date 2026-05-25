@@ -6,6 +6,7 @@
 
 import sys
 import os
+import base64
 from collections import OrderedDict
 from io import BytesIO
 
@@ -474,6 +475,17 @@ def generate_process_score_sheet(students, session_keys, leave_data):
 
 DEMO_FILE = '示例表格.xlsx'
 
+
+def _sample_link():
+    """Return base64 data URI for the sample file download link."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), DEMO_FILE)
+    if not os.path.exists(path):
+        return ''
+    with open(path, 'rb') as f:
+        b64 = base64.b64encode(f.read()).decode()
+    return f'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}'
+
+
 st.markdown("""
 <style>
     .block-container { padding-top: 2.5rem; padding-bottom: 3rem; }
@@ -481,9 +493,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("长江雨课堂考勤数据分析工具")
-st.markdown("上传雨课堂导出的 Excel 文件，自动生成考勤明细和课堂表现统计。")
 
-st.markdown("""
+st.markdown(f"""
+上传雨课堂导出的 Excel 文件，自动生成考勤明细和课堂表现统计。
+
 **适用平台：** [长江雨课堂](https://changjiang.yuketang.cn/web/?index)
 
 **支持的文件类型：**
@@ -494,32 +507,23 @@ st.markdown("""
 1. 登录长江雨课堂官网，进入你授课的班级
 2. 点击 **批量导出数据**
 3. 筛选需要统计的课堂记录
-4. 下载导出的 Excel 文件（即 `.xlsx` 格式的汇总数据表）
+4. 下载导出的 Excel 文件（即 `.xlsx` 格式的汇总数据表）。<a href="{_sample_link()}" download="{DEMO_FILE}">下载示例表格</a>
 
 **上传后：**
 - 自动解析并分 tab 展示考勤明细、课堂表现得分和统计摘要
 - 支持单文件分析和两表合并（如理论班 + 实验班）
 - 提供两种下载：考勤明细 Excel（颜色标注）和过程性成绩记载表（✓/✗/△）
-""")
-
-sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), DEMO_FILE)
-if os.path.exists(sample_path):
-    with open(sample_path, 'rb') as f:
-        sample_bytes = f.read()
-    st.download_button(
-        label="📄 下载示例表格（输入格式参考）",
-        data=sample_bytes,
-        file_name=DEMO_FILE,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-    div[data-testid="stSegmentedControl"] button {
-        font-size: 1.1rem; padding: 0.25rem 1.5rem;
+    button[kind='segmented_control'], button[kind='segmented_controlActive'] {
+        font-size: 1.8rem !important;
+        padding: 1rem 2.5rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
+
 mode = st.segmented_control("模式", ["单文件模式", "合并模式"],
                             default="单文件模式", label_visibility="collapsed")
 
@@ -652,11 +656,12 @@ if mode == "单文件模式":
 
 # ── 合并模式 ──
 elif mode == "合并模式":
+    st.caption("请确保两个文件中的学生姓名和学号一致，否则合并结果会不准确。")
     col1, col2 = st.columns(2)
     with col1:
-        f1 = st.file_uploader("选择第一个考勤文件", key="f1")
+        f1 = st.file_uploader("选择文件一", key="f1")
     with col2:
-        f2 = st.file_uploader("选择第二个考勤文件", key="f2")
+        f2 = st.file_uploader("选择文件二", key="f2")
 
     if f1 and f2:
         errors = []
@@ -702,6 +707,7 @@ elif mode == "合并模式":
                     students.append({
                         'id': s1['id'],
                         'name': s1['name'],
+                        'cls': s1['cls'],
                         'attendance': {**s1['attendance'], **s2['attendance']},
                         'scores': {**s1['scores'], **s2['scores']},
                     })

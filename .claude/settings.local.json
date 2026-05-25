@@ -64,7 +64,18 @@
       "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" release view v1.0.0)",
       "Bash(cp \"dist/考勤分析工具.exe\" dist/AttendanceAnalyzer.exe)",
       "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" release upload v1.0.0 dist/AttendanceAnalyzer.exe --repo chuanyuyuan/RainClassroomAttendanceAnalyzer --clobber)",
-      "Bash(rm dist/AttendanceAnalyzer.exe)"
+      "Bash(rm dist/AttendanceAnalyzer.exe)",
+      "WebSearch",
+      "WebFetch(domain:docs.streamlit.io)",
+      "Bash(grep -oP '.{0,100}SegmentedControl.{0,200}' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "Bash(grep -oP '\".{0,50}SegmentedControl.{0,50}\"' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "Bash(grep -oP 'data-testid[^;]{0,100}' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "Bash(grep -oP '\".{0,30}segmented.{0,30}\"' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "Bash(grep -oP 'button_group[^;]{0,200}' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "WebFetch(domain:blog.csdn.net)",
+      "Bash(grep -oP '\"[^\"]{0,50}SegmentedControl[^\"]*\"' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "Bash(grep -oP '.{0,100}segmented.{0,200}' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
+      "Bash(ls \"D:\\\\projects\\\\AttendanceAnalyzer\\\\tests\\\\\\\\\")"
     ]
   }
 }

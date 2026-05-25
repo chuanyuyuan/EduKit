@@ -506,8 +506,12 @@ class AttendanceGUI:
                               "选择文件", lambda: self._pick_file(self.input_file2))
         self._file_picker_row(self.tab_merge, 2, "输出目录:", self.output_dir,
                               "选择目录", self._pick_output_dir)
+        ttk.Label(self.tab_merge,
+                  text="请确保两个文件中的学生姓名和学号一致，否则合并结果会不准确。",
+                  foreground="#555", font=("Microsoft YaHei", 9)
+                  ).grid(row=3, column=0, columnspan=2, pady=(2, 0), sticky="w")
         ttk.Button(self.tab_merge, text="开始分析", command=self._run_merge
-                   ).grid(row=3, column=1, pady=(8, 0))
+                   ).grid(row=4, column=1, pady=(8, 0))
 
     def _build_log_area(self):
         frame = ttk.LabelFrame(self.root, text="运行日志", padding=5)
