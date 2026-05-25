@@ -424,7 +424,11 @@ class AttendanceGUI:
 
     def _download_sample(self):
         demo_file = '示例表格.xlsx'
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), demo_file)
+        if getattr(sys, 'frozen', False):
+            base = sys._MEIPASS
+        else:
+            base = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base, demo_file)
         if not os.path.exists(path):
             messagebox.showerror("错误", f"未找到示例文件: {demo_file}")
             return

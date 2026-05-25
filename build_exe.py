@@ -14,7 +14,7 @@ gui_path = os.path.join(script_dir, 'attendance_gui.py')
 icon_path = os.path.join(script_dir, 'icon.ico')
 
 args = [
-    '--name=考勤分析工具',
+    '--name=AttendanceAnalyzerGUI',
     '--onefile',            # 单个 exe
     '--windowed',           # 不显示控制台窗口
     '--noconfirm',
@@ -24,6 +24,10 @@ args = [
     '--add-data', f'{gui_path};.',  # 将脚本本身打包进去
 ]
 
+demo_path = os.path.join(script_dir, '示例表格.xlsx')
+if os.path.isfile(demo_path):
+    args.append(f'--add-data={demo_path};.')
+
 # 如果存在 icon 文件则使用
 if os.path.isfile(icon_path):
     args.append(f'--icon={icon_path}')
@@ -32,4 +36,4 @@ args.append(gui_path)
 
 print("正在打包，请稍候...")
 PyInstaller.__main__.run(args)
-print(f"\n打包完成！exe 位于: {os.path.join(script_dir, 'dist', '考勤分析工具.exe')}")
+print(f"\n打包完成！exe 位于: {os.path.join(script_dir, 'dist', 'AttendanceAnalyzerGUI.exe')}")

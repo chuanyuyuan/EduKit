@@ -77,7 +77,8 @@
       "Bash(grep -oP '.{0,100}segmented.{0,200}' \"C:\\\\Users\\\\chuanyu\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python313\\\\site-packages\\\\streamlit\\\\static\\\\static\\\\js\\\\src.D9MArGZj.js\")",
       "Bash(ls \"D:\\\\projects\\\\AttendanceAnalyzer\\\\tests\\\\\\\\\")",
       "Bash(ls *.xlsx)",
-      "Bash(ls tests/*.xlsx)"
+      "Bash(ls tests/*.xlsx)",
+      "Bash(gh release *)"
     ]
   }
 }
