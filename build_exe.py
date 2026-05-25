@@ -28,6 +28,10 @@ demo_path = os.path.join(script_dir, '示例表格.xlsx')
 if os.path.isfile(demo_path):
     args.append(f'--add-data={demo_path};.')
 
+version_path = os.path.join(script_dir, 'VERSION')
+if os.path.isfile(version_path):
+    args.append(f'--add-data={version_path};.')
+
 # 如果存在 icon 文件则使用
 if os.path.isfile(icon_path):
     args.append(f'--icon={icon_path}')

@@ -656,7 +656,7 @@ if mode == "单文件模式":
 
 # ── 合并模式 ──
 elif mode == "合并模式":
-    st.caption("请确保两个文件中的学生姓名和学号一致，否则合并结果会不准确。")
+    st.caption("自动按学号匹配合并，支持学生顺序不一致。若两文件名单有差异会提示错误。")
     col1, col2 = st.columns(2)
     with col1:
         f1 = st.file_uploader("选择文件一", key="f1")

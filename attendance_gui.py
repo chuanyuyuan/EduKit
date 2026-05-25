@@ -463,10 +463,23 @@ class AttendanceGUI:
         )
         messagebox.showinfo("使用说明", msg)
 
+    def _get_version(self):
+        if getattr(sys, 'frozen', False):
+            base = sys._MEIPASS
+        else:
+            base = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base, 'VERSION')
+        try:
+            with open(path, encoding='utf-8') as f:
+                return f.read().strip()
+        except Exception:
+            return '?'
+
     def _show_about(self):
+        version = self._get_version()
         msg = (
             "长江雨课堂考勤分析工具\n"
-            f"版本: v1.0.0\n\n"
+            f"版本: v{version}\n\n"
             "基于雨课堂导出的 Excel 自动生成考勤统计。\n\n"
             "GitHub: https://github.com/chuanyuyuan/\n"
             "  RainClassroomAttendanceAnalyzer"
@@ -511,7 +524,7 @@ class AttendanceGUI:
         self._file_picker_row(self.tab_merge, 2, "输出目录:", self.output_dir,
                               "选择目录", self._pick_output_dir)
         ttk.Label(self.tab_merge,
-                  text="请确保两个文件中的学生姓名和学号一致，否则合并结果会不准确。",
+                  text="自动按学号匹配合并，支持学生顺序不一致。若两文件名单有差异会提示错误。",
                   foreground="#555", font=("Microsoft YaHei", 9)
                   ).grid(row=3, column=0, columnspan=2, pady=(2, 0), sticky="w")
         ttk.Button(self.tab_merge, text="开始分析", command=self._run_merge
