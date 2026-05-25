@@ -463,10 +463,23 @@ class AttendanceGUI:
         )
         messagebox.showinfo("使用说明", msg)
 
+    def _get_version(self):
+        if getattr(sys, 'frozen', False):
+            base = sys._MEIPASS
+        else:
+            base = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base, 'VERSION')
+        try:
+            with open(path, encoding='utf-8') as f:
+                return f.read().strip()
+        except Exception:
+            return '?'
+
     def _show_about(self):
+        version = self._get_version()
         msg = (
             "长江雨课堂考勤分析工具\n"
-            f"版本: v1.0.0\n\n"
+            f"版本: v{version}\n\n"
             "基于雨课堂导出的 Excel 自动生成考勤统计。\n\n"
             "GitHub: https://github.com/chuanyuyuan/\n"
             "  RainClassroomAttendanceAnalyzer"
