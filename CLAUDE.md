@@ -22,7 +22,7 @@ RainClassroomAttendanceAnalyzer/
 ├── attendance_gui.py         # tkinter GUI desktop app
 ├── attendance_analyzer.py    # CLI version of the parser
 ├── build_exe.py              # PyInstaller build script
-├── 测试表格.xlsx             # Demo data file
+├── 示例表格.xlsx             # Demo data file
 ├── dist/                     # Built exe output (gitignored)
 ├── requirements.txt
 ├── README.md
@@ -41,7 +41,7 @@ RainClassroomAttendanceAnalyzer/
 ### Key files
 - `app.py` — Streamlit UI + all parsing functions in one file
 - `attendance_analyzer.py` — Same parsing logic, CLI interface, standalone use
-- `测试表格.xlsx` — Synthetic demo file with 10 students, 3 sessions
+- `示例表格.xlsx` — Synthetic demo file with 10 students, 3 sessions
 
 ## Important Notes
 

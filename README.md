@@ -48,7 +48,7 @@ RainClassroomAttendanceAnalyzer/
 ├── attendance_gui.py         # tkinter 桌面版
 ├── attendance_analyzer.py    # CLI 分析脚本
 ├── build_exe.py              # PyInstaller 打包脚本
-├── 测试表格.xlsx             # 示例数据
+├── 示例表格.xlsx             # 示例数据
 ├── requirements.txt
 ├── CLAUDE.md
 └── README.md

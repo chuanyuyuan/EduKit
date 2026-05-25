@@ -15,11 +15,6 @@ from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill
 
 st.set_page_config(page_title="雨课堂考勤分析", layout="wide")
-st.markdown("""
-<style>
-    .block-container { padding-top: 2.5rem; padding-bottom: 3rem; }
-</style>
-""", unsafe_allow_html=True)
 
 # ── 核心解析函数（与本地版一致） ──
 
@@ -477,7 +472,13 @@ def generate_process_score_sheet(students, session_keys, leave_data):
 
 # ── Streamlit UI ──
 
-DEMO_FILE = '测试表格.xlsx'
+DEMO_FILE = '示例表格.xlsx'
+
+st.markdown("""
+<style>
+    .block-container { padding-top: 2.5rem; padding-bottom: 3rem; }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("长江雨课堂考勤数据分析工具")
 st.markdown("上传雨课堂导出的 Excel 文件，自动生成考勤明细和课堂表现统计。")
@@ -500,6 +501,17 @@ st.markdown("""
 - 支持单文件分析和两表合并（如理论班 + 实验班）
 - 提供两种下载：考勤明细 Excel（颜色标注）和过程性成绩记载表（✓/✗/△）
 """)
+
+sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), DEMO_FILE)
+if os.path.exists(sample_path):
+    with open(sample_path, 'rb') as f:
+        sample_bytes = f.read()
+    st.download_button(
+        label="📄 下载示例表格（输入格式参考）",
+        data=sample_bytes,
+        file_name=DEMO_FILE,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 st.markdown("""
 <style>

@@ -399,6 +399,75 @@ class AttendanceGUI:
         self.output_dir = tk.StringVar(value=os.getcwd())
 
         self._build_ui()
+        self._build_menu()
+
+    def _build_menu(self):
+        menubar = tk.Menu(self.root)
+
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        settings_menu.add_command(label="设置默认输出路径", command=self._set_default_dir)
+        menubar.add_cascade(label="设置", menu=settings_menu)
+
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="下载示例表格", command=self._download_sample)
+        help_menu.add_separator()
+        help_menu.add_command(label="使用说明", command=self._show_help)
+        help_menu.add_command(label="关于", command=self._show_about)
+        menubar.add_cascade(label="帮助", menu=help_menu)
+
+        self.root.config(menu=menubar)
+
+    def _set_default_dir(self):
+        path = filedialog.askdirectory(title="选择默认输出路径")
+        if path:
+            self.output_dir.set(path)
+
+    def _download_sample(self):
+        demo_file = '示例表格.xlsx'
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), demo_file)
+        if not os.path.exists(path):
+            messagebox.showerror("错误", f"未找到示例文件: {demo_file}")
+            return
+        save_path = filedialog.asksaveasfilename(
+            title="保存示例表格",
+            defaultextension=".xlsx",
+            initialfile=demo_file,
+            filetypes=[("Excel 文件", "*.xlsx")]
+        )
+        if not save_path:
+            return
+        try:
+            import shutil
+            shutil.copy2(path, save_path)
+            self._log_success(f'示例表格已保存到: {save_path}')
+        except Exception as e:
+            messagebox.showerror("错误", f"保存失败:\n{e}")
+
+    def _show_help(self):
+        msg = (
+            "长江雨课堂考勤分析工具 - 使用说明\n\n"
+            "1. 选择模式：单文件模式 / 合并模式\n"
+            "2. 选择雨课堂导出的 Excel 文件\n"
+            "3. 选择输出目录\n"
+            "4. 点击「开始分析」\n\n"
+            "支持的文件类型：\n"
+            "  • 批量导出的汇总数据表（含汇总页 + 课堂情况子表）\n"
+            "  • 单次课导出的课堂数据表（自动识别）\n\n"
+            "输出文件：\n"
+            "  • 考勤明细_时间戳.xlsx（颜色标注）\n"
+            "  • 过程性成绩记载表_时间戳.xlsx（✓/✗/△）"
+        )
+        messagebox.showinfo("使用说明", msg)
+
+    def _show_about(self):
+        msg = (
+            "长江雨课堂考勤分析工具\n"
+            f"版本: v1.0.0\n\n"
+            "基于雨课堂导出的 Excel 自动生成考勤统计。\n\n"
+            "GitHub: https://github.com/chuanyuyuan/\n"
+            "  RainClassroomAttendanceAnalyzer"
+        )
+        messagebox.showinfo("关于", msg)
 
     # ── UI 构建 ──
 
