@@ -5,6 +5,3 @@ build/
 __pycache__/
 *.pyc
 ~$*.xlsx
-
-# tests
-tests/
