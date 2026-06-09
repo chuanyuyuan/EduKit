@@ -32,8 +32,10 @@ def show_results(buf, info):
     tab1, tab2, tab3 = st.tabs([":material/table: 考勤明细", ":material/star: 课堂表现", ":material/bar_chart: 统计摘要"])
 
     with tab1:
-        st.info("完整数据请下载 Excel 文件查看。下面预览前 10 名学生：")
-        df = pd.DataFrame(info['preview_attendance'][:10])
+        df = pd.DataFrame(info['preview_attendance'])
+        if df.empty:
+            st.info("暂无考勤数据。")
+            return
         styled = df.style.map(
             lambda v: 'background-color: #C6EFCE' if v == '上课'
             else 'background-color: #FFEB9C' if v in ('病假', '事假')
@@ -43,14 +45,13 @@ def show_results(buf, info):
         st.dataframe(styled, use_container_width=True)
 
     with tab2:
-        st.info("课堂表现得分详情请下载 Excel 文件查看。下面预览前 10 名学生：")
         all_scores = info['preview_scores']
         totals = [s['总分'] for s in all_scores]
         sorted_totals = sorted(totals, reverse=True)
         n_top = max(1, round(len(sorted_totals) * 0.1))
         threshold = sorted_totals[n_top - 1]
 
-        df_scores = pd.DataFrame(all_scores[:10])
+        df_scores = pd.DataFrame(all_scores)
         styled_scores = df_scores.style.apply(
             lambda row: ['background-color: #FFD700'] * len(row)
             if row['总分'] >= threshold else [''] * len(row),

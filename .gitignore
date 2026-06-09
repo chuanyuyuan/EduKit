@@ -9,3 +9,7 @@ __pycache__/
 # local settings
 .claude/
 CLAUDE.md
+tools/learning_analytics/config_local.py
+
+# design docs (not part of source code)
+docs/

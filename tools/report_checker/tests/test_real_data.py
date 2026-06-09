@@ -13,7 +13,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from tools.report_checker.core import (
-    unzip_process, organize_process, convert_process, analyze,
+    unzip_process, organize_process, analyze,
     extract_features, run_pipeline,
 )
 
@@ -100,19 +100,7 @@ with tempfile.TemporaryDirectory() as td:
 
 
 # ════════════════════════════════════════════
-section('Test 3: convert_process — .doc 降级处理')
-# ════════════════════════════════════════════
-
-converted = convert_process("/nonexistent")
-if converted:
-    print('  .doc 转换成功（pywin32 可用）')
-else:
-    print('  .doc 转换跳过（pywin32 不可用，预期行为）')
-check(not converted or True, '转换阶段未抛出异常')
-
-
-# ════════════════════════════════════════════
-section('Test 4: analyze — 可读的 .docx 比对')
+section('Test 3: analyze — 可读的 .docx 比对')
 # ════════════════════════════════════════════
 
 with tempfile.TemporaryDirectory() as td:
@@ -120,7 +108,6 @@ with tempfile.TemporaryDirectory() as td:
     target = os.path.join(td, "organized")
     unzip_process(ZIP_PATH, raw)
     organize_process(raw, target)
-    convert_process(target)
     result = analyze(target)
 
     check_eq(result['total'], 10, '合成样本共 10 份文档（含陈十十空白占位）')
@@ -135,7 +122,7 @@ with tempfile.TemporaryDirectory() as td:
 
 
 # ════════════════════════════════════════════
-section('Test 5: run_pipeline 完整流程')
+section('Test 4: run_pipeline 完整流程')
 # ════════════════════════════════════════════
 
 with tempfile.TemporaryDirectory() as td:
@@ -166,7 +153,7 @@ with tempfile.TemporaryDirectory() as td:
 
 
 # ════════════════════════════════════════════
-section('Test 6: extract_features — .docx 图片提取')
+section('Test 5: extract_features — .docx 图片提取')
 # ════════════════════════════════════════════
 
 with tempfile.TemporaryDirectory() as td:

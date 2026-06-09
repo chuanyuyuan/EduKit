@@ -179,9 +179,10 @@ from openpyxl import load_workbook
 buf.seek(0)
 wb = load_workbook(buf)
 sheets = wb.sheetnames
-check_eq(len(sheets), 2, 'Excel 包含 2 个工作表')
+check_eq(len(sheets), 3, 'Excel 包含 3 个工作表')
 check('统计概览' in sheets, '包含统计概览表')
 check('详细名单' in sheets, '包含详细名单表')
+check('抄袭关系' in sheets, '包含抄袭关系表')
 ws2 = wb['详细名单']
 rows = list(ws2.iter_rows(values_only=True))
 check_eq(len(rows), 3, '详细名单有 2 行数据 + 1 行标题')
@@ -406,6 +407,71 @@ with tempfile.TemporaryDirectory() as td:
         elif '王五' in name:
             check(row[1] == '正常', f'14 {name} 1/3=33.3% 正常')
     check_eq(r['plag_count'], 2, '14 2 份抄袭（张三和李四各 2/3=66.7%，王五 1/3=33.3% 正常）')
+
+
+# ════════════════════════════════════════════
+section('Test 15: run_pipeline 无效 ZIP → 异常')
+# ════════════════════════════════════════════
+
+import zipfile as _zipfile
+
+with tempfile.TemporaryDirectory() as td:
+    # 15a: 完全非 ZIP 文件
+    not_zip = os.path.join(td, "not_a_zip.txt")
+    with open(not_zip, "w") as f:
+        f.write("this is not a zip file")
+    raised = False
+    try:
+        run_pipeline(not_zip, os.path.join(td, "ws"))
+    except _zipfile.BadZipFile:
+        raised = True
+    except Exception:
+        raised = True
+    check(raised, '15a 非 ZIP 文件抛出异常')
+
+    # 15b: 空文件
+    empty_zip = os.path.join(td, "empty.zip")
+    with open(empty_zip, "wb") as f:
+        f.write(b"")
+    raised = False
+    try:
+        run_pipeline(empty_zip, os.path.join(td, "ws2"))
+    except Exception:
+        raised = True
+    check(raised, '15b 空 ZIP 文件抛出异常')
+
+
+# ════════════════════════════════════════════
+section('Test 16: unzip_process 无效 ZIP')
+# ════════════════════════════════════════════
+
+with tempfile.TemporaryDirectory() as td:
+    bad_path = os.path.join(td, "bad.zip")
+    with open(bad_path, "wb") as f:
+        f.write(b"trash data")
+    raised = False
+    try:
+        unzip_process(bad_path, os.path.join(td, "out"))
+    except _zipfile.BadZipFile:
+        raised = True
+    except Exception:
+        raised = True
+    check(raised, '16 无效 ZIP 数据抛出 BadZipFile')
+
+
+# ════════════════════════════════════════════
+section('Test 17: run_pipeline 空 ZIP')
+# ════════════════════════════════════════════
+
+with tempfile.TemporaryDirectory() as td:
+    zip_path = os.path.join(td, "empty.zip")
+    with _zipfile.ZipFile(zip_path, 'w') as z:
+        pass  # 创建空 ZIP（无文件条目）
+    result = run_pipeline(zip_path, os.path.join(td, "ws"))
+    check(result['total'] == 0, '17 空 ZIP total=0')
+    check('excel_buf' in result, '17 空 ZIP 有 excel_buf')
+    result['excel_buf'].seek(0)
+    check(len(result['excel_buf'].read()) > 0, '17 空 ZIP Excel 不为空')
 
 
 # ════════════════════════════════════════════

@@ -28,25 +28,27 @@ st.markdown("""
 from tools.attendance.ui import render_attendance_page
 from tools.roster_diff.ui import render_page as roster_diff_page_fn
 from tools.report_checker.ui import render_page as report_checker_page_fn
+from tools.learning_analytics.ui import render_page as learning_analytics_page_fn
 
 attendance_page = st.Page(render_attendance_page, title="雨课堂课堂数据分析", icon=":material/calendar_month:", url_path="attendance")
 roster_diff_page = st.Page(roster_diff_page_fn, title="setDiff工具", icon=":material/compare_arrows:", url_path="roster_diff")
 report_checker_page = st.Page(report_checker_page_fn, title="头歌图文实验图片查重", icon=":material/file_copy:", url_path="report_checker")
+learning_analytics_page = st.Page(learning_analytics_page_fn, title="雨课堂学情分析", icon=":material/insights:", url_path="learning_analytics")
 
 def _landing_page():
     st.markdown("<h1 style='margin-bottom:1.5rem;'>EduKit 教师工具包</h1>", unsafe_allow_html=True)
-    cols = st.columns(3, gap="large")
+    cols = st.columns(4, gap="small")
 
     cards = [
         ("attendance", "calendar_month", "雨课堂数据分析",
-         "解析长江雨课堂导出的 Excel 考勤表，自动生成带颜色标注的考勤明细和过程性成绩记载表。"
+         "解析雨课堂 Excel 考勤表，生成带颜色标注的考勤明细和过程性成绩记载表。"
          "支持单次课和合并模式。"),
+        ("learning_analytics", "insights", "雨课堂学情分析",
+         "上传雨课堂数据，自动分析出勤与得分趋势，生成 AI 学情评语和学生画像。"),
         ("report_checker", "file_copy", "头歌图片查重",
-         "解压学生提交的 ZIP 压缩包，提取 Word 文档中的嵌入图片，通过像素级 MD5 "
-         "指纹交叉比对检测抄袭。支持 .doc/.docx 格式。"),
+         "解压学生 ZIP 压缩包，提取 Word 嵌入图片，通过像素级 MD5 指纹交叉比对检测抄袭。"),
         ("roster_diff", "compare_arrows", "setDiff工具",
-         "快速比对两份名单的差异，自动去重并显示交集和差集。适用于查未交作业、"
-         "查缺勤等场景。支持大小写忽略。"),
+         "快速比对两份名单差异，自动去重并显示交集和差集。支持大小写忽略。"),
     ]
 
     for col, (key, icon, title, desc) in zip(cols, cards):
@@ -71,8 +73,11 @@ root_page = st.Page(_landing_page, title="EduKit")
 with st.sidebar:
     st.page_link(root_page, label="EduKit 教师工具包", use_container_width=True)
     st.page_link(attendance_page, label="雨课堂课堂数据分析", icon=":material/calendar_month:", use_container_width=True)
+    st.page_link(learning_analytics_page, label="雨课堂学情分析", icon=":material/insights:", use_container_width=True)
     st.page_link(report_checker_page, label="头歌图片查重", icon=":material/file_copy:", use_container_width=True)
     st.page_link(roster_diff_page, label="setDiff工具", icon=":material/compare_arrows:", use_container_width=True)
 
-pg = st.navigation([root_page, attendance_page, report_checker_page, roster_diff_page], position="hidden")
+    st.divider()
+
+pg = st.navigation([root_page, attendance_page, learning_analytics_page, report_checker_page, roster_diff_page], position="hidden")
 pg.run()

@@ -440,7 +440,6 @@ class AttendanceGUI:
         if not save_path:
             return
         try:
-            import shutil
             shutil.copy2(path, save_path)
             self._log_success(f'示例表格已保存到: {save_path}')
         except Exception as e:

@@ -2,6 +2,7 @@
 查重分析 — Streamlit UI 组件
 """
 import os
+import base64
 import tempfile
 import shutil
 
@@ -18,6 +19,16 @@ def _demo_zip_path():
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         DEMO_ZIP,
     )
+
+
+def _sample_zip_link():
+    """Return base64 data URI for the demo ZIP file download link."""
+    path = _demo_zip_path()
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    return f"data:application/zip;base64,{b64}"
 
 
 def _sorted_results(results):
@@ -89,7 +100,7 @@ def _render_network(result):
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
-    with st.expander("图例说明"):
+    with st.expander("图例说明", expanded=True):
         st.markdown(f"""
 - **红色节点** — 疑似抄袭（共 {result["plag_count"]} 人）
 - **绿色节点** — 正常（共 {result["total"] - result["plag_count"] - result["none_count"]} 人）
@@ -110,11 +121,15 @@ def _run_analysis(zip_path, workspace, status):
             progress_bar = st.progress(0, text=msg)
         progress_bar.progress(min(current / total, 1.0), text=msg)
 
-    result = run_pipeline(
-        zip_path, workspace,
-        log_func=log,
-        progress_callback=on_progress,
-    )
+    try:
+        result = run_pipeline(
+            zip_path, workspace,
+            log_func=log,
+            progress_callback=on_progress,
+        )
+    except Exception as e:
+        st.error(f"分析过程出错。请确认上传的是头歌图文实验平台导出的有效 ZIP 压缩包。\n\n错误详情：{e}")
+        return None
 
     if progress_bar is not None:
         progress_bar.empty()
@@ -131,10 +146,11 @@ def _run_analysis(zip_path, workspace, status):
 
 def render_page():
     st.header(":material/file_copy: 头歌图文实验图片查重")
-    st.markdown("""
+    link = _sample_zip_link()
+    st.markdown(f"""
 上传学生从头歌图文实验平台导出的附件压缩包（ZIP），检测实验报告中是否存在图片复用/抄袭。
 
-**适用平台：** 头歌图文实验平台
+**适用平台：** [头歌平台图文实验](https://www.educoder.net/)
 
 **支持的文件类型：**
 - 平台导出的附件压缩包（ZIP 格式，内含学生 Word 实验报告）
@@ -142,16 +158,16 @@ def render_page():
 **原始文件获取方式：**
 1. 进入头歌图文实验空间，找到目标实验
 2. 点击 **导出** → **导出答题记录与附件**
-3. 下载生成的压缩包（ZIP 格式）
+3. 下载生成的压缩包（即 `.zip` 格式的附件压缩包）。<a href="{link}" download="{DEMO_ZIP}">下载示例压缩包</a>
 
 **上传后：**
 - 自动解压、提取并整理所有学生 Word 实验报告
 - 提取报告中嵌入的图片并计算指纹，交叉比对
 - 相同图片数 ≥ 本人图片数 40% 判定为疑似抄袭
 - 生成带颜色标注和饼图的查重报告 Excel
-""")
+""", unsafe_allow_html=True)
 
-    uploaded = st.file_uploader(":material/folder_zip: 选择 ZIP 压缩包", type=["zip"])
+    uploaded = st.file_uploader(":material/folder_zip: 选择 ZIP 压缩包")
 
     # Detect new upload (different file or re-upload) → clear result
     if uploaded:
@@ -176,11 +192,14 @@ def render_page():
         zip_path = None
 
         if uploaded:
-            should_run = True
-            workspace = tempfile.mkdtemp()
-            zip_path = os.path.join(workspace, "upload.zip")
-            with open(zip_path, "wb") as f:
-                f.write(uploaded.getvalue())
+            if not uploaded.name.endswith('.zip'):
+                st.error(f'不支持的文件格式："{uploaded.name}"，请上传 .zip 压缩包。')
+            else:
+                should_run = True
+                workspace = tempfile.mkdtemp()
+                zip_path = os.path.join(workspace, "upload.zip")
+                with open(zip_path, "wb") as f:
+                    f.write(uploaded.getvalue())
         elif st.session_state.get("rc_show_demo"):
             demo_path = _demo_zip_path()
             if os.path.exists(demo_path):

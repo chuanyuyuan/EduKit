@@ -31,15 +31,6 @@ def _clear():
     st.session_state.roster_diff_result = None
 
 
-def _copy(text):
-    try:
-        import pyperclip
-        pyperclip.copy(text)
-        st.toast("已复制到剪贴板")
-    except ImportError:
-        st.error("复制功能需要安装 pyperclip：pip install pyperclip")
-
-
 def _display_result(result):
     stats = result['stats']
 
@@ -63,34 +54,19 @@ def _display_result(result):
 
     with tab_both:
         if result['both']:
-            text = "\n".join(result['both'])
-            st.code(text, language="text")
-            st.button(":material/content_copy: 复制交集",
-                      key="copy_intersection",
-                      on_click=_copy, args=(text,),
-                      use_container_width=True)
+            st.code("\n".join(result['both']), language="text")
         else:
             st.info("无交集")
 
     with tab_only_a:
         if result['only_a']:
-            text = "\n".join(result['only_a'])
-            st.code(text, language="text")
-            st.button(":material/content_copy: 复制仅 A",
-                      key="copy_only_a",
-                      on_click=_copy, args=(text,),
-                      use_container_width=True)
+            st.code("\n".join(result['only_a']), language="text")
         else:
             st.info("无差异")
 
     with tab_only_b:
         if result['only_b']:
-            text = "\n".join(result['only_b'])
-            st.code(text, language="text")
-            st.button(":material/content_copy: 复制仅 B",
-                      key="copy_only_b",
-                      on_click=_copy, args=(text,),
-                      use_container_width=True)
+            st.code("\n".join(result['only_b']), language="text")
         else:
             st.info("无差异")
 
@@ -111,7 +87,7 @@ def render_page():
 
 **功能特点：**
 - 自动识别交集、仅 A 有、仅 B 有三类数据
-- 支持一键复制任意分类结果
+- 结果区域自带复制按钮（鼠标悬停可见）
 - 两份名单完全一致时有明确提示
 """)
 

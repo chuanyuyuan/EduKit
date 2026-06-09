@@ -12,7 +12,6 @@ import os
 import shutil
 import hashlib
 import zipfile
-import stat
 from io import BytesIO
 
 from docx import Document
@@ -65,49 +64,6 @@ def organize_process(raw_dir, target_dir):
                     break
         if not found:
             Document().save(os.path.join(target_dir, f"{new_name}.docx"))
-
-
-def convert_process(target_dir):
-    """通过 Word COM 接口将 .doc 转换为 .docx（仅 Windows，需安装 pywin32+Word）。"""
-    try:
-        import win32com.client as win32
-    except ImportError:
-        return False
-
-    try:
-        all_docs = [f for f in os.listdir(target_dir)
-                    if f.endswith('.doc') and not f.startswith('~$')]
-    except OSError:
-        return False
-    to_convert = [f for f in all_docs
-                  if not os.path.exists(os.path.join(target_dir, f + "x"))]
-    if not to_convert:
-        return True
-
-    os.system('taskkill /IM WINWORD.EXE /F >nul 2>&1')
-    try:
-        word = win32.DispatchEx('Word.Application')
-        word.Visible = False
-        word.DisplayAlerts = 0
-        for name in to_convert:
-            p = os.path.abspath(os.path.join(target_dir, name))
-            px = p + "x"
-            try:
-                os.chmod(p, stat.S_IWRITE)
-                d = word.Documents.Open(
-                    p, ConfirmConversions=False,
-                    ReadOnly=False, AddToRecentFiles=False,
-                )
-                d.SaveAs(px, FileFormat=16)
-                d.Close()
-                if os.path.exists(px):
-                    os.remove(p)
-            except Exception:
-                continue
-        word.Quit()
-        return True
-    except Exception:
-        return False
 
 
 def extract_features(file_path):
@@ -236,7 +192,7 @@ def analyze(target_dir, progress_callback=None):
             "pairs": pairs, "img_counts": img_counts}
 
 
-def generate_excel(results, total, plag_count, none_count):
+def generate_excel(results, total, plag_count, none_count, pairs=None, img_counts=None):
     """生成查重报告 Excel，返回 BytesIO。"""
     normal_count = total - plag_count - none_count
 
@@ -291,6 +247,25 @@ def generate_excel(results, total, plag_count, none_count):
     ws2.column_dimensions['A'].width = 25
     ws2.column_dimensions['C'].width = 65
 
+    # 抄袭关系数据（文字版，网络图无法在 Excel 展示）
+    ws3 = wb.create_sheet("抄袭关系")
+    ws3.append(["学生A", "学生B", "相同图片数", "抄袭比例(%)"])
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    for cell in ws3[1]:
+        cell.fill = header_fill
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.alignment = Alignment(horizontal="center")
+    if pairs:
+        for n1, n2, count in pairs:
+            total1 = img_counts.get(n1, 1) if img_counts else 1
+            total2 = img_counts.get(n2, 1) if img_counts else 1
+            ratio = max(count / total1, count / total2) * 100
+            ws3.append([n1, n2, count, round(ratio, 1)])
+    ws3.column_dimensions['A'].width = 20
+    ws3.column_dimensions['B'].width = 20
+    ws3.column_dimensions['C'].width = 14
+    ws3.column_dimensions['D'].width = 16
+
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -298,7 +273,7 @@ def generate_excel(results, total, plag_count, none_count):
 
 
 def run_pipeline(zip_path, workspace, log_func=print, progress_callback=None):
-    """完整查重流水线：解压 → 整理 → 转换 → 分析 → 报表。
+    """完整查重流水线：解压 → 整理 → 分析 → 报表。
 
     Args:
         zip_path: ZIP 文件路径
@@ -327,5 +302,6 @@ def run_pipeline(zip_path, workspace, log_func=print, progress_callback=None):
     excel_buf = generate_excel(
         analysis["results"], analysis["total"],
         analysis["plag_count"], analysis["none_count"],
+        pairs=analysis.get("pairs"), img_counts=analysis.get("img_counts"),
     )
     return {**analysis, "excel_buf": excel_buf}

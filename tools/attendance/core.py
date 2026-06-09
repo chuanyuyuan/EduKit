@@ -285,10 +285,7 @@ def generate_output(session_keys, session_sign_map, session_score_map, students,
             for cell in row:
                 cell.fill = gold_fill
 
-    buf = BytesIO()
-    owb.save(buf)
-    buf.seek(0)
-
+    # 每次课统计摘要
     summary_lines = []
     for sk in session_sign_map:
         attend = absent = sick = personal = 0
@@ -311,6 +308,17 @@ def generate_output(session_keys, session_sign_map, session_score_map, students,
             '病假': sick,
             '事假': personal,
         })
+
+    ows3 = owb.create_sheet('考勤统计')
+    ows3.append(['课程', '上课', '旷课', '病假', '事假'])
+    for cell in ows3[1]:
+        cell.font = Font(bold=True)
+    for line in summary_lines:
+        ows3.append([line['session'], line['上课'], line['旷课'], line['病假'], line['事假']])
+
+    buf = BytesIO()
+    owb.save(buf)
+    buf.seek(0)
 
     total_absent = sum(1 for s in students for sk in session_sign_map
                        if s['attendance'].get(sk) == '未上课'
