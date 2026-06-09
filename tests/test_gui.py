@@ -31,8 +31,6 @@ _spec.loader.exec_module(gui)
 from collections import OrderedDict
 from io import BytesIO
 from openpyxl import load_workbook
-from openpyxl.styles import Font, Alignment, Border
-
 PASS = FAIL = 0
 
 def check(cond, msg):
@@ -107,8 +105,6 @@ def run_merge(path1, path2):
     ld = {**ld1, **ld2}
     return sk, ssm, sscm, stus, ld
 
-
-GET_STATUS = {}  # populated by test 7
 
 
 # ════════════════════════════════════════════

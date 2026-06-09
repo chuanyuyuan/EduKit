@@ -8,41 +8,22 @@
   4. 合并模式 — 单表 + 汇总表
   5. 合并模式 — 汇总表 + 汇总表
 
-运行： python tests/test_all.py
+运行： python tests/test_py
 """
-import sys, os, types
+import sys, os
 sys.stdout.reconfigure(encoding='utf-8')
 
-# ── Mock streamlit ──
-_m = types.ModuleType('streamlit')
-for attr in ['rerun','set_page_config','title','markdown','subheader',
-             'info','success','error','warning','caption','balloons','stop',
-             'button','download_button','file_uploader','segmented_control',
-             'dataframe','spinner']:
-    setattr(_m, attr, lambda *a, **kw: None)
-class _Ctx:
-    def __enter__(s): return s
-    def __exit__(s, *a): pass
-    def update(s, **kw): pass
-    def write(s, *a): pass
-_m.columns = lambda *a, **kw: tuple(_Ctx() for _ in range(a[0] if a else 2))
-_m.status = lambda *a, **kw: _Ctx()
-sys.modules['streamlit'] = _m
-
-# ── Import app.py ──
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT)
-import importlib.util
-_spec = importlib.util.spec_from_file_location("app", os.path.join(PROJECT, 'app.py'))
-app = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(app)
+
+from tools.attendance.core import (
+    col_idx, parse_file, generate_output, generate_process_score_sheet
+)
 
 from collections import OrderedDict
 from io import BytesIO
 from openpyxl import load_workbook
-from openpyxl.styles import Font, Alignment, Border
-
 PASS = FAIL = 0
 
 def check(cond, msg):
@@ -90,7 +71,7 @@ def parse(path):
     """Parse a file, return (session_keys, sign_map, score_map, students, leave_data)."""
     wb = load_workbook(path, data_only=True)
     try:
-        return app.parse_file(wb)
+        return parse_file(wb)
     finally:
         wb.close()
 
@@ -158,7 +139,7 @@ for s in stus[:3]:
     check(len(s['attendance']) == 2, f'{s["name"]} 有 2 次课记录')
 
 # Verify output generation succeeds
-buf, info = app.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 check(isinstance(buf, BytesIO), '输出生成成功')
 
 # ════════════════════════════════════════════
@@ -170,7 +151,7 @@ sk, ssm, sscm, stus, ld = run_merge(S1, M1)
 check_eq(len(sk), 4, '合并后 4 次课（1 单表 + 3 汇总表）')
 check_eq(len(stus), 10, '合并后 10 名学生')
 
-buf, info = app.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 check(isinstance(buf, BytesIO), '输出生成成功')
 
 # ════════════════════════════════════════════
@@ -182,7 +163,7 @@ sk, ssm, sscm, stus, ld = run_merge(M1, M2)
 check_eq(len(sk), 6, '合并后 6 次课（3 + 3）')
 check_eq(len(stus), 10, '合并后 10 名学生')
 
-buf, info = app.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 check(isinstance(buf, BytesIO), '输出生成成功')
 
 # ════════════════════════════════════════════
@@ -207,7 +188,7 @@ check(any('99999999' in d for d in diff), '差异中包含修改的学号')
 section('Test 7: 输出格式验证')
 
 sk, ssm, sscm, stus, ld = parse(M1)
-buf, info = app.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 
 # 考勤明细
 out_wb = load_workbook(buf, data_only=False)

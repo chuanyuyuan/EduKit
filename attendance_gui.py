@@ -10,7 +10,6 @@ from tkinter import ttk, filedialog, messagebox
 import threading
 import os
 import sys
-import time
 from datetime import datetime
 from collections import OrderedDict
 from io import BytesIO
@@ -423,7 +422,7 @@ class AttendanceGUI:
             self.output_dir.set(path)
 
     def _download_sample(self):
-        demo_file = '示例表格.xlsx'
+        demo_file = 'samples/sample_attendance.xlsx'
         if getattr(sys, 'frozen', False):
             base = sys._MEIPASS
         else:

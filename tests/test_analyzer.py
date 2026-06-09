@@ -13,26 +13,24 @@
   9. 输出内容验证
   10. 过程性成绩符号验证
 
-运行： python tests/test_analyzer.py
+运行： python tests/test_py
 """
 import sys, os, glob
 sys.stdout.reconfigure(encoding='utf-8')
 
-# ── Import attendance_analyzer.py ──
+# ── 从 tools.attendance.core 导入 ──
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT)
 
-import importlib.util
-_spec = importlib.util.spec_from_file_location("analyzer", os.path.join(PROJECT, 'attendance_analyzer.py'))
-analyzer = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(analyzer)
+from tools.attendance.core import (
+    col_idx, parse_file, generate_output, generate_process_score_sheet,
+    parse_summary, parse_sub_sheets, parse_single_session,
+)
 
 from collections import OrderedDict
 from io import BytesIO
 from openpyxl import load_workbook
-from openpyxl.styles import Font, Alignment, Border
-
 PASS = FAIL = 0
 
 def check(cond, msg):
@@ -79,7 +77,7 @@ print(f'  汇总表2: {os.path.basename(M2)}')
 def parse(path):
     wb = load_workbook(path, data_only=True)
     try:
-        return analyzer.parse_file(wb)
+        return parse_file(wb)
     finally:
         wb.close()
 
@@ -140,7 +138,7 @@ check_eq(len(sk), 2, '合并后 2 次课')
 check_eq(len(stus), 10, '合并后 10 名学生')
 for s in stus:
     check(len(s['attendance']) == 2, f'{s["name"]} 有 2 次课记录')
-buf, info = analyzer.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 check(isinstance(buf, BytesIO), '输出生成成功')
 
 # ════════════════════════════════════════════
@@ -151,7 +149,7 @@ section('Test 4: 合并模式 — 单表 + 汇总表')
 sk, ssm, sscm, stus, ld = run_merge(S1, M1)
 check_eq(len(sk), 4, '合并后 4 次课')
 check_eq(len(stus), 10, '合并后 10 名学生')
-buf, info = analyzer.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 check(isinstance(buf, BytesIO), '输出生成成功')
 
 # ════════════════════════════════════════════
@@ -162,7 +160,7 @@ section('Test 5: 合并模式 — 汇总表 + 汇总表')
 sk, ssm, sscm, stus, ld = run_merge(M1, M2)
 check_eq(len(sk), 6, '合并后 6 次课')
 check_eq(len(stus), 10, '合并后 10 名学生')
-buf, info = analyzer.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 check(isinstance(buf, BytesIO), '输出生成成功')
 
 # ════════════════════════════════════════════
@@ -187,7 +185,7 @@ check(any('99999999' in d for d in diff), '差异中包含修改的学号')
 section('Test 7: 输出格式验证')
 
 sk, ssm, sscm, stus, ld = parse(M1)
-buf, info = analyzer.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 
 out_wb = load_workbook(buf, data_only=False)
 ws = out_wb.active
@@ -198,7 +196,7 @@ check('课堂表现' in out_wb.sheetnames[1], f'Sheet2 为课堂表现')
 out_wb.close()
 
 # 过程性成绩记载表
-ps_buf = analyzer.generate_process_score_sheet(stus, sk, ld)
+ps_buf = generate_process_score_sheet(stus, sk, ld)
 check(isinstance(ps_buf, BytesIO), '过程性成绩表生成成功')
 ps_wb = load_workbook(ps_buf, data_only=False)
 ps_ws = ps_wb.active
@@ -225,9 +223,9 @@ check_eq(len(sk_m), 3, '汇总表文件识别为 3 次课')
 check(stus_s[0]['id'] == stus_m[0]['id'], '两文件学号一致')
 
 # col_idx 工具函数
-check_eq(analyzer.col_idx('A'), 0, 'col_idx(A) = 0')
-check_eq(analyzer.col_idx('Z'), 25, 'col_idx(Z) = 25')
-check_eq(analyzer.col_idx('AA'), 26, 'col_idx(AA) = 26')
+check_eq(col_idx('A'), 0, 'col_idx(A) = 0')
+check_eq(col_idx('Z'), 25, 'col_idx(Z) = 25')
+check_eq(col_idx('AA'), 26, 'col_idx(AA) = 26')
 
 # ════════════════════════════════════════════
 # TEST 9: 输出内容验证
@@ -235,7 +233,7 @@ check_eq(analyzer.col_idx('AA'), 26, 'col_idx(AA) = 26')
 section('Test 9: 输出内容验证')
 
 sk, ssm, sscm, stus, ld = parse(M1)
-buf, info = analyzer.generate_output(sk, ssm, sscm, stus, ld)
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
 out_wb = load_workbook(buf, data_only=False)
 ws = out_wb.active
 
@@ -279,7 +277,7 @@ out_wb.close()
 # ════════════════════════════════════════════
 section('Test 10: 过程性成绩符号验证')
 
-ps_buf = analyzer.generate_process_score_sheet(stus, sk, ld)
+ps_buf = generate_process_score_sheet(stus, sk, ld)
 ps_wb = load_workbook(ps_buf, data_only=False)
 ps_ws = ps_wb.active
 
@@ -311,11 +309,11 @@ section('Test 11: 合并模式 — 顺序无关')
 
 # 解析两个汇总表，把第二个反转顺序
 wb1 = load_workbook(M1, data_only=True)
-sk1, ssm1, sscm1, stus1, ld1 = analyzer.parse_file(wb1)
+sk1, ssm1, sscm1, stus1, ld1 = parse_file(wb1)
 wb1.close()
 
 wb2 = load_workbook(M2, data_only=True)
-sk2, ssm2, sscm2, stus2_orig, ld2 = analyzer.parse_file(wb2)
+sk2, ssm2, sscm2, stus2_orig, ld2 = parse_file(wb2)
 wb2.close()
 
 # 反转 students2 的顺序
@@ -360,6 +358,240 @@ for s in stus_b:
         name_mismatch_ids.add(s['id'])
 check(len(diff) > 0, '姓名不一致时检测到差异')
 check(not name_mismatch_ids - {'04230001'}, f'只有学号 04230001 被标记为姓名不一致 ({name_mismatch_ids})')
+
+# ════════════════════════════════════════════
+# TEST 13: parse_summary 异常路径
+# ════════════════════════════════════════════
+section('Test 13: parse_summary 异常路径')
+
+from openpyxl import Workbook
+
+# 13a: 第 2 行为空
+wb = Workbook()
+ws = wb.active
+ws.cell(1, 1, value="Session 1")
+try:
+    parse_summary(wb)
+    check(False, '13a 空第 2 行应抛出 ValueError')
+except ValueError as e:
+    check('第 2 行为空' in str(e), f'13a 空第 2 行提示正确')
+wb.close()
+
+# 13b: 第 1 行为空
+wb = Workbook()
+ws = wb.active
+ws.cell(2, 1, value="签到方式")
+try:
+    parse_summary(wb)
+    check(False, '13b 空第 1 行应抛出 ValueError')
+except ValueError as e:
+    check('第 1 行为空' in str(e), f'13b 空第 1 行提示正确')
+wb.close()
+
+# 13c: 没有签到方式列
+wb = Workbook()
+ws = wb.active
+ws.cell(1, 1, value="Session 1")
+ws.cell(2, 1, value="得分")
+try:
+    parse_summary(wb)
+    check(False, '13c 无签到方式列应抛出 ValueError')
+except ValueError as e:
+    check('签到方式' in str(e), f'13c 无签到方式列提示正确')
+wb.close()
+
+
+# ════════════════════════════════════════════
+# TEST 14: parse_sub_sheets 异常路径
+# ════════════════════════════════════════════
+section('Test 14: parse_sub_sheets 异常路径')
+
+wb = Workbook()
+ws = wb.active
+ws.title = "汇总"  # 不含「课堂情况」
+try:
+    parse_sub_sheets(wb, ["session1"])
+    check(False, '14 无课堂情况子表应抛出 ValueError')
+except ValueError as e:
+    check('课堂情况' in str(e), f'14 无课堂情况子表提示正确')
+wb.close()
+
+
+# ════════════════════════════════════════════
+# TEST 15: parse_single_session 异常路径
+# ════════════════════════════════════════════
+section('Test 15: parse_single_session 异常路径')
+
+# 15a: 第 1 行为空
+wb = Workbook()
+ws = wb.active
+ws.cell(3, 5, value="签到方式")
+try:
+    parse_single_session(wb)
+    check(False, '15a 空第 1 行应抛出 ValueError')
+except ValueError as e:
+    check('第 1 行为空' in str(e), f'15a 空第 1 行提示正确')
+wb.close()
+
+# 15b: 无签到方式列
+wb = Workbook()
+ws = wb.active
+ws.cell(1, 1, value="课堂名称")
+ws.cell(3, 5, value="得分")
+try:
+    parse_single_session(wb)
+    check(False, '15b 无签到方式应抛出 ValueError')
+except ValueError as e:
+    check('签到方式' in str(e), f'15b 无签到方式提示正确')
+wb.close()
+
+
+# ════════════════════════════════════════════
+# TEST 16: parse_file 异常路径
+# ════════════════════════════════════════════
+section('Test 16: parse_file 异常路径')
+
+# 16a: 空 Workbook（无 sheet）
+wb = Workbook()
+wb.remove(wb.active)
+try:
+    parse_file(wb)
+    check(False, '16a 空表应抛出 ValueError')
+except ValueError as e:
+    check('工作表' in str(e), f'16a 空表提示正确')
+wb.close()
+
+# 16b: 空白 sheet 名（含课堂情况但无数据）
+wb = Workbook()
+ws = wb.active
+ws.title = "课堂情况_1"
+# parse_file → parse_single_session → no row1
+try:
+    parse_file(wb)
+    check(False, '16b 空白单表应抛出 ValueError')
+except ValueError as e:
+    check(True, f'16b 空白单表正确抛出: {e}')
+wb.close()
+
+
+# ════════════════════════════════════════════
+# TEST 17: 签到状态 — 未知值 fallthrough
+# ════════════════════════════════════════════
+section('Test 17: 签到状态 — 未知值 fallthrough')
+
+# 当签到值既不在 PRESENT_SET 也不是「未上课」时，应原样保留
+sk, ssm, sscm, stus, ld = parse(M1)
+# 手动修改第一个学生的第一次课签到来模拟未知值
+session_name = list(ssm.keys())[0]
+stus[0]['attendance'][session_name] = '其他签到方式'
+buf, info = generate_output(sk, ssm, sscm, stus, ld)
+preview = info['preview_attendance']
+check(preview[0][session_name] == '其他签到方式',
+      f'17 未知签到值原样保留: {preview[0][session_name]}')
+
+
+# ════════════════════════════════════════════
+# TEST 18: 空 session_score_map
+# ════════════════════════════════════════════
+section('Test 18: 空 session_score_map')
+
+buf, info = generate_output(sk, ssm, OrderedDict(), stus, ld)
+check(isinstance(buf, BytesIO), '18a 空 score_map 输出生成成功')
+check(info['session_count'] == len(ssm), '18b session_count 不受 score_map 影响')
+if info['preview_scores']:
+    check(info['preview_scores'][0]['总分'] == 0,
+          '18c 无得分时总分为 0')
+
+
+# ════════════════════════════════════════════
+# TEST 19: 全班旷课 / 全班全勤
+# ════════════════════════════════════════════
+section('Test 19: 全班旷课 / 全班全勤')
+
+# 把所有人的所有签到设为「未上课」且无请假
+stus_all_absent = []
+for s in stus:
+    sa = dict(s)
+    sa['attendance'] = {k: '未上课' for k in ssm}
+    stus_all_absent.append(sa)
+
+buf, info = generate_output(sk, ssm, sscm, stus_all_absent, {})
+out_wb = load_workbook(buf, data_only=False)
+ows = out_wb.active
+absent_rate = str(ows.cell(2, ows.max_column - 1).value or '')
+total_rate = str(ows.cell(2, ows.max_column).value or '')
+check(absent_rate == '100%', f'19a 全班旷课率: {absent_rate}')
+check(total_rate == '100%', f'19b 全班总旷课率: {total_rate}')
+out_wb.close()
+
+# 全班全勤
+stus_all_present = []
+for s in stus:
+    sa = dict(s)
+    sa['attendance'] = {k: '扫二维码' for k in ssm}
+    stus_all_present.append(sa)
+
+buf, info = generate_output(sk, ssm, sscm, stus_all_present, {})
+out_wb = load_workbook(buf, data_only=False)
+ows = out_wb.active
+absent_rate = str(ows.cell(2, ows.max_column - 1).value or '')
+check(absent_rate == '0%', f'19c 全班全勤旷课率: {absent_rate}')
+out_wb.close()
+
+
+# ════════════════════════════════════════════
+# TEST 20: 课堂表现 — 分数相同时前 10% 高亮
+# ════════════════════════════════════════════
+section('Test 20: 分数相同时前 10% 高亮')
+
+stus_same = []
+for s in stus:
+    sa = dict(s)
+    sa['scores'] = {k: 80 for k in sscm}
+    stus_same.append(sa)
+buf, info = generate_output(sk, ssm, sscm, stus_same, {})
+out_wb = load_workbook(buf, data_only=False)
+ows2 = out_wb[out_wb.sheetnames[1]]
+gold_count = 0
+for row in ows2.iter_rows(min_row=2, max_row=ows2.max_row):
+    v = row[-1].value  # 总分
+    if v is not None:
+        try:
+            fill_rgb = row[-1].fill.start_color.rgb if row[-1].fill else ''
+            if 'FFD700' in str(fill_rgb):
+                gold_count += 1
+        except AttributeError:
+            pass
+check(gold_count >= 1, f'20 同分时至少 1 行高亮（10% × 10人 = 1 行）({gold_count})')
+out_wb.close()
+
+
+# ════════════════════════════════════════════
+# TEST 21: parse_single_session 正常路径
+# ════════════════════════════════════════════
+section('Test 21: parse_single_session 正常路径')
+
+from openpyxl import Workbook
+wb = Workbook()
+ws = wb.active
+ws.title = "课堂情况_2024年3月5日"
+ws.cell(1, 1, value="2024春_理论课")
+ws.cell(3, 5, value="签到方式")
+ws.cell(5, 1, value="04230001")
+ws.cell(5, 4, value="赵一一")
+ws.cell(5, 5, value="扫二维码")
+ws.cell(5, 7, value="")
+ws.cell(6, 1, value="04230002")
+ws.cell(6, 4, value="钱二二")
+ws.cell(6, 5, value="未上课")
+ws.cell(6, 7, value="病假")
+sk, ssm, sscm, students, ld = parse_single_session(wb)
+check_eq(len(sk), 1, '21 解析到 1 次课')
+check_eq(len(students), 2, '21 解析到 2 名学生')
+check(students[0]['attendance'][sk[0]] == '扫二维码', '21 签到正确')
+check(('2024春_理论课', '04230002') in ld, '21 请假记录存在')
+check(ld[('2024春_理论课', '04230002')] == '病假', '21 请假类型正确')
+wb.close()
 
 # ════════════════════════════════════════════
 section('SUMMARY')

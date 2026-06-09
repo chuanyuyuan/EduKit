@@ -7,7 +7,6 @@ PyInstaller 打包脚本 — 将 attendance_gui.py 打包为单个 exe
 
 import PyInstaller.__main__
 import os
-import sys
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 gui_path = os.path.join(script_dir, 'attendance_gui.py')
@@ -24,7 +23,7 @@ args = [
     '--add-data', f'{gui_path};.',  # 将脚本本身打包进去
 ]
 
-demo_path = os.path.join(script_dir, '示例表格.xlsx')
+demo_path = os.path.join(script_dir, 'samples', 'sample_attendance.xlsx')
 if os.path.isfile(demo_path):
     args.append(f'--add-data={demo_path};.')
 
