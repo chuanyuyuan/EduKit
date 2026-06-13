@@ -29,15 +29,17 @@ from tools.attendance.ui import render_attendance_page
 from tools.roster_diff.ui import render_page as roster_diff_page_fn
 from tools.report_checker.ui import render_page as report_checker_page_fn
 from tools.learning_analytics.ui import render_page as learning_analytics_page_fn
+from tools.defense_scheduler.ui import render_page as defense_scheduler_page_fn
 
 attendance_page = st.Page(render_attendance_page, title="雨课堂课堂数据分析", icon=":material/calendar_month:", url_path="attendance")
 roster_diff_page = st.Page(roster_diff_page_fn, title="setDiff工具", icon=":material/compare_arrows:", url_path="roster_diff")
 report_checker_page = st.Page(report_checker_page_fn, title="头歌图文实验图片查重", icon=":material/file_copy:", url_path="report_checker")
 learning_analytics_page = st.Page(learning_analytics_page_fn, title="雨课堂学情分析", icon=":material/insights:", url_path="learning_analytics")
+defense_scheduler_page = st.Page(defense_scheduler_page_fn, title="答辩顺序生成器", icon=":material/shuffle:", url_path="defense_scheduler")
 
 def _landing_page():
     st.markdown("<h1 style='margin-bottom:1.5rem;'>EduKit 教师工具包</h1>", unsafe_allow_html=True)
-    cols = st.columns(4, gap="small")
+    cols = st.columns(5, gap="small")
 
     cards = [
         ("attendance", "calendar_month", "雨课堂数据分析",
@@ -49,6 +51,8 @@ def _landing_page():
          "解压学生 ZIP 压缩包，提取 Word 嵌入图片，通过像素级 MD5 指纹交叉比对检测抄袭。"),
         ("roster_diff", "compare_arrows", "setDiff工具",
          "快速比对两份名单差异，自动去重并显示交集和差集。支持大小写忽略。"),
+        ("defense_scheduler", "shuffle", "答辩顺序生成器",
+         "随机生成学生答辩顺序，按总课时自动分配每人答辩时间，下载 Excel 表格。"),
     ]
 
     for col, (key, icon, title, desc) in zip(cols, cards):
@@ -74,10 +78,11 @@ with st.sidebar:
     st.page_link(root_page, label="EduKit 教师工具包", use_container_width=True)
     st.page_link(attendance_page, label="雨课堂课堂数据分析", icon=":material/calendar_month:", use_container_width=True)
     st.page_link(learning_analytics_page, label="雨课堂学情分析", icon=":material/insights:", use_container_width=True)
+    st.page_link(defense_scheduler_page, label="答辩顺序生成器", icon=":material/shuffle:", use_container_width=True)
     st.page_link(report_checker_page, label="头歌图片查重", icon=":material/file_copy:", use_container_width=True)
     st.page_link(roster_diff_page, label="setDiff工具", icon=":material/compare_arrows:", use_container_width=True)
 
     st.divider()
 
-pg = st.navigation([root_page, attendance_page, learning_analytics_page, report_checker_page, roster_diff_page], position="hidden")
+pg = st.navigation([root_page, attendance_page, learning_analytics_page, defense_scheduler_page, report_checker_page, roster_diff_page], position="hidden")
 pg.run()

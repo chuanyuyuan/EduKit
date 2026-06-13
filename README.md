@@ -35,6 +35,14 @@
 - 力导向关系网络图展示抄袭关联
 - 生成带饼图 + 颜色标注的 Excel 报表
 
+### 答辩顺序生成器
+
+输入学生名单和答辩时间区间，随机生成答辩顺序并自动分配每人答辩时间。
+
+- 自动随机排序，支持换行/逗号/顿号分隔姓名
+- 按时间区间（HH:MM–HH:MM）计算每人答辩时长
+- 一键下载 Excel 答辩顺序表（含序号、姓名、时间区间）
+
 ### setDiff 工具
 
 快速比对两份名单的差异，自动去重并显示交集和差集。
@@ -112,13 +120,16 @@ RainClassroomAttendanceAnalyzer/
 │   │       ├── test_core.py  #   核心逻辑测试
 │   │       ├── test_real_data.py  # 合成数据 e2e 测试
 │   │       └── test_ui.py    #    Playwright UI 测试
-│   └── learning_analytics/   # 雨课堂学情分析
-│       ├── core.py           #   指标统计 + DeepSeek API 调用
-│       ├── ui.py             #   Streamlit UI
-│       ├── prompts.py        #   AI 提示词模板
-│       ├── config.py         #   配置（env / st.secrets / 本地覆盖）
-│       └── tests/
-│           └── test_core.py  #   核心逻辑测试
+│   ├── learning_analytics/   # 雨课堂学情分析
+│   │   ├── core.py           #   指标统计 + DeepSeek API 调用
+│   │   ├── ui.py             #   Streamlit UI
+│   │   ├── prompts.py        #   AI 提示词模板
+│   │   ├── config.py         #   配置（env / st.secrets / 本地覆盖）
+│   │   └── tests/
+│   │       └── test_core.py  #   核心逻辑测试
+│   └── defense_scheduler/    # 答辩顺序生成器
+│       ├── core.py           #   随机排序 + 时间分配 + Excel 生成
+│       └── ui.py             #   Streamlit UI
 ├── tests/
 │   ├── test_analyzer.py      # CLI 版功能测试（121 项）
 │   ├── test_app.py           # Streamlit 版功能测试（34 项）
