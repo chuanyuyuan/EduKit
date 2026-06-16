@@ -37,11 +37,12 @@
 
 ### 答辩顺序生成器
 
-输入学生名单和答辩时间区间，随机生成答辩顺序并自动分配每人答辩时间。
+随机打乱学生答辩顺序，按总时间区间自动分配每人答辩时间，支持拖拽调整顺序。
 
-- 自动随机排序，支持换行/逗号/顿号分隔姓名
-- 按时间区间（HH:MM–HH:MM）计算每人答辩时长
-- 一键下载 Excel 答辩顺序表（含序号、姓名、时间区间）
+- **双数据来源**：上传 Excel 花名册（自动识别学号、姓名列）或手动输入姓名
+- **拖拽排序**：生成后可通过拖拽微调顺序
+- **时间自动分配**：按时间区间（HH:MM–HH:MM）计算每人答辩时长
+- **一键下载**：Excel 答辩顺序表（含学号、序号、时间区间）
 
 ### setDiff 工具
 
@@ -99,27 +100,28 @@ RainClassroomAttendanceAnalyzer/
 ├── build_exe.py              # PyInstaller 打包脚本
 ├── VERSION                   # 版本号
 ├── samples/
-│   ├── sample_attendance.xlsx      # 考勤分析示例数据
-│   └── sample_report_checker.zip   # 查重分析示例数据
+│   ├── sample_attendance.xlsx          # 考勤分析示例数据
+│   ├── sample_report_checker.zip       # 查重分析示例数据
+│   └── sample_class_roster.xlsx        # 答辩花名册示例数据
 ├── tools/
 │   ├── attendance/           # 雨课堂考勤分析
 │   │   ├── core.py           #   核心解析逻辑
 │   │   ├── ui.py             #   Streamlit UI
 │   │   └── tests/
-│   │       └── test_ui.py    #    Playwright UI 测试
+│   │       └── test_ui.py    #   Playwright UI 测试
 │   ├── roster_diff/          # 名单比对
 │   │   ├── core.py           #   核心逻辑
 │   │   ├── ui.py             #   Streamlit UI
 │   │   └── tests/
 │   │       ├── test_core.py  #   核心逻辑测试
-│   │       └── test_ui.py    #    Playwright UI 测试
+│   │       └── test_ui.py    #   Playwright UI 测试
 │   ├── report_checker/       # 头歌图片查重
 │   │   ├── core.py           #   流水线：解压→整理→指纹提取→比对→报表
 │   │   ├── ui.py             #   Streamlit UI
 │   │   └── tests/
 │   │       ├── test_core.py  #   核心逻辑测试
 │   │       ├── test_real_data.py  # 合成数据 e2e 测试
-│   │       └── test_ui.py    #    Playwright UI 测试
+│   │       └── test_ui.py    #   Playwright UI 测试
 │   ├── learning_analytics/   # 雨课堂学情分析
 │   │   ├── core.py           #   指标统计 + DeepSeek API 调用
 │   │   ├── ui.py             #   Streamlit UI
@@ -128,8 +130,11 @@ RainClassroomAttendanceAnalyzer/
 │   │   └── tests/
 │   │       └── test_core.py  #   核心逻辑测试
 │   └── defense_scheduler/    # 答辩顺序生成器
-│       ├── core.py           #   随机排序 + 时间分配 + Excel 生成
-│       └── ui.py             #   Streamlit UI
+│       ├── core.py           #   随机排序 + 时间分配 + Excel 读写
+│       ├── ui.py             #   Streamlit UI（拖拽排序 + 花名册上传）
+│       └── tests/
+│           ├── test_core.py  #   核心逻辑测试（71 项）
+│           └── test_ui.py    #   Playwright UI 测试（18 项）
 ├── tests/
 │   ├── test_analyzer.py      # CLI 版功能测试（121 项）
 │   ├── test_app.py           # Streamlit 版功能测试（34 项）
@@ -156,12 +161,14 @@ RainClassroomAttendanceAnalyzer/
 | 查重 UI | 2 | `python -m tools.report_checker.tests.test_ui` |
 | 学情分析核心 | 37 | `python tools/learning_analytics/tests/test_core.py` |
 | 考勤 UI | 4 | `python -m tools.attendance.tests.test_ui` |
-| **合计** | **484** | |
+| 答辩顺序核心 | 71 | `python tools/defense_scheduler/tests/test_core.py` |
+| 答辩顺序 UI | 18 | `python -m tools.defense_scheduler.tests.test_ui` |
+| **合计** | **573** | |
 
 运行全部测试：
 
 ```bash
-python tests/test_analyzer.py && python tests/test_app.py && python tests/test_gui.py && python tools/roster_diff/tests/test_core.py && python tools/report_checker/tests/test_core.py && python tools/report_checker/tests/test_real_data.py && python tools/learning_analytics/tests/test_core.py
+python tests/test_analyzer.py && python tests/test_app.py && python tests/test_gui.py && python tools/roster_diff/tests/test_core.py && python tools/report_checker/tests/test_core.py && python tools/report_checker/tests/test_real_data.py && python tools/learning_analytics/tests/test_core.py && python tools/defense_scheduler/tests/test_core.py && python -m tools.defense_scheduler.tests.test_ui
 ```
 
 ## 技术栈

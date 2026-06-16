@@ -637,11 +637,16 @@ def _draw_radar(stats, session_score_info=None):
     values = [stats["attendance_rate"], score_level, max(0, stability)]
 
     try:
+        from matplotlib import font_manager
         import matplotlib.pyplot as plt
         import numpy as np
-        from matplotlib import rcParams
 
-        rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
+        _cn_candidates = [f.name for f in font_manager.fontManager.ttflist
+                          if any(k in f.name.lower() for k in ("yahei", "simhei", "noto", "wenquanyi",
+                                                               "dengxian", "stxihei", "stsong",
+                                                               "arial unicode"))]
+        rcParams = plt.rcParams
+        rcParams['font.sans-serif'] = _cn_candidates + ['DejaVu Sans', 'sans-serif']
         rcParams['axes.unicode_minus'] = False
 
         angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()

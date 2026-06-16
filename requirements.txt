@@ -7,4 +7,5 @@ Pillow>=10.0
 networkx>=2.8
 matplotlib>=3.5
 openai>=1.0
+streamlit-sortables>=0.3
 

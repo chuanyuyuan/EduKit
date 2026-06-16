@@ -47,10 +47,15 @@ def _render_network(result):
         return
 
     import networkx as nx
+    from matplotlib import font_manager
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
 
-    rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
+    _cn_candidates = [f.name for f in font_manager.fontManager.ttflist
+                      if any(k in f.name.lower() for k in ("yahei", "simhei", "noto", "wenquanyi",
+                                                           "dengxian", "stxihei", "stsong",
+                                                           "arial unicode"))]
+    rcParams['font.sans-serif'] = _cn_candidates + ['DejaVu Sans', 'sans-serif']
     rcParams['axes.unicode_minus'] = False
 
     img_counts = result.get("img_counts", {})

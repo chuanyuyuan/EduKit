@@ -6,42 +6,81 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 
-def parse_names(text: str) -> list[str]:
-    """从文本中提取学生姓名列表。支持换行、逗号、顿号分隔。"""
+def parse_names(text: str) -> list[tuple[str, str]]:
+    """从文本中提取学生姓名列表，返回 [(学号, 姓名)]，学号为空字符串。"""
     import re
     names = re.split(r"[\n,，、；;\s]+", text.strip())
-    return [n.strip() for n in names if n.strip()]
+    return [("", n.strip()) for n in names if n.strip()]
 
 
-def generate_schedule(names: list[str], start_time, end_time):
+def parse_roster(file) -> list[tuple[str, str]]:
+    """从 Excel 花名册中读取学生列表，返回 [(学号, 姓名)]。
+
+    自动检测包含「学号」和「姓名」的表头列，找不到则抛 ValueError。
     """
-    随机打乱顺序，按时间区间分配每人时间。
+    import openpyxl
+    wb = openpyxl.load_workbook(file)
+    ws = wb.active
 
-    start_time, end_time 可以是 datetime.time 或 "HH:MM" 字符串。
+    # 定位列
+    sid_col = name_col = None
+    for c in range(1, ws.max_column + 1):
+        h = ws.cell(1, c).value
+        if h is None:
+            continue
+        h = str(h).strip()
+        if "学号" in h:
+            sid_col = c
+        elif "姓名" in h:
+            name_col = c
 
-    返回 (schedule_rows, per_student_seconds):
-      schedule_rows: [(序号, 姓名, 开始_str, 结束_str), ...]
+    if sid_col is None or name_col is None:
+        raise ValueError(
+            "未找到「学号」和/或「姓名」列。"
+            "请确保表头行包含「学号」和「姓名」字段。"
+        )
+
+    students = []
+    for r in range(2, ws.max_row + 1):
+        sid = ws.cell(r, sid_col).value
+        name = ws.cell(r, name_col).value
+        if not name:
+            continue
+        students.append((str(sid or ""), str(name).strip()))
+    wb.close()
+    return students
+
+
+def _assign_times(student_list, start_time, end_time):
+    """为给定的 (学号, 姓名) 列表分配时间，返回 (rows, per_student_seconds)。
+
+    rows: [(序号, 学号, 姓名, 开始_str, 结束_str), ...]
     """
-    random.shuffle(names)
-    n = len(names)
-    if isinstance(start_time, str):
-        start_time = datetime.strptime(start_time, "%H:%M").time()
-    if isinstance(end_time, str):
-        end_time = datetime.strptime(end_time, "%H:%M").time()
-    t1 = datetime.combine(datetime.today(), start_time)
-    t2 = datetime.combine(datetime.today(), end_time)
+    t1 = datetime.strptime(start_time, "%H:%M")
+    t2 = datetime.strptime(end_time, "%H:%M")
     if t2 <= t1:
         raise ValueError("结束时间必须晚于开始时间")
     total_seconds = int((t2 - t1).total_seconds())
-    per_student = total_seconds / n
+    per_student = total_seconds / len(student_list) if student_list else 0
 
     rows = []
-    for i, name in enumerate(names):
-        start = t1 + timedelta(seconds=int(i * per_student))
-        end = t1 + timedelta(seconds=int((i + 1) * per_student))
-        rows.append((i + 1, name, start.strftime("%H:%M"), end.strftime("%H:%M")))
+    for i, (sid, name) in enumerate(student_list):
+        s = t1 + timedelta(seconds=int(i * per_student))
+        e = t1 + timedelta(seconds=int((i + 1) * per_student))
+        rows.append((i + 1, sid, name, s.strftime("%H:%M"), e.strftime("%H:%M")))
 
     return rows, per_student
+
+
+def build_schedule(order: list, start_time: str, end_time: str):
+    """按给定顺序和时间区间分配每人时间，不随机打乱。
+
+    order: list of (学号, 姓名) 或 list of str（仅姓名）。
+    返回 (rows, per_student_seconds):
+      rows: [(序号, 学号, 姓名, 开始_str, 结束_str), ...]
+    """
+    student_list = [item if isinstance(item, (list, tuple)) else ("", item) for item in order]
+    return _assign_times(student_list, start_time, end_time)
 
 
 def format_duration(seconds: float) -> str:
@@ -53,7 +92,12 @@ def format_duration(seconds: float) -> str:
 
 
 def to_excel(rows: list, per_student_seconds: float) -> bytes:
-    """生成 Excel 文件并返回二进制内容。"""
+    """生成 Excel 文件并返回二进制内容。
+
+    rows 中的元素可以是:
+      - 4 元素: (序号, 姓名, 开始, 结束) — 无学号，旧格式
+      - 5 元素: (序号, 学号, 姓名, 开始, 结束) — 含学号
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "答辩顺序表"
@@ -68,9 +112,12 @@ def to_excel(rows: list, per_student_seconds: float) -> bytes:
         top=Side(style="thin"), bottom=Side(style="thin"),
     )
 
+    # 判断是否含学号（至少一行有非空学号）
+    has_id = any(len(r) == 5 and r[1] for r in rows)
+
     # 表头
-    headers = ["答辩序号", "姓名", "开始时间", "结束时间"]
-    widths = [12, 18, 14, 14]
+    headers = ["答辩序号", "学号", "姓名", "开始时间", "结束时间"] if has_id else ["答辩序号", "姓名", "开始时间", "结束时间"]
+    widths = [12, 16, 16, 14, 14] if has_id else [12, 18, 14, 14]
     for ci, (h, w) in enumerate(zip(headers, widths), start=1):
         cell = ws.cell(row=1, column=ci, value=h)
         cell.font = header_font_white
@@ -80,8 +127,10 @@ def to_excel(rows: list, per_student_seconds: float) -> bytes:
         ws.column_dimensions[ws.cell(row=1, column=ci).column_letter].width = w
 
     # 数据行
-    for ri, (seq, name, t1, t2) in enumerate(rows, start=2):
-        for ci, val in enumerate([seq, name, t1, t2], start=1):
+    for ri, row in enumerate(rows, start=2):
+        seq, sid, name, t1, t2 = row
+        vals = [seq, sid, name, t1, t2] if has_id else [seq, name, t1, t2]
+        for ci, val in enumerate(vals, start=1):
             cell = ws.cell(row=ri, column=ci, value=val)
             cell.font = cell_font
             cell.alignment = center
