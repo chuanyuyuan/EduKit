@@ -456,3 +456,45 @@ def generate_process_score_sheet(students, session_keys, leave_data):
     owb.save(buf)
     buf.seek(0)
     return buf
+
+
+def merge_datasets(datasets: list) -> tuple:
+    """Merge multiple parsed datasets into one.
+
+    datasets: list of (session_keys, session_sign_map, session_score_map, students, leave_data)
+    Returns: (session_keys, session_sign_map, session_score_map, students, leave_data)
+
+    All datasets must have the same student roster (same IDs + names).
+    Sessions are concatenated in order; attendance/scores per student are merged by ID.
+    """
+    if not datasets:
+        raise ValueError("没有数据可合并")
+
+    session_keys = []
+    session_sign_map = OrderedDict()
+    session_score_map = OrderedDict()
+    leave_data = {}
+
+    for sk, ssm, sscm, students, ld in datasets:
+        session_keys.extend(sk)
+        session_sign_map.update(ssm)
+        session_score_map.update(sscm)
+        leave_data.update(ld)
+
+    # Merge each student's attendance and scores by ID across all files
+    students_by_id = {}
+    for _, _, _, students, _ in datasets:
+        for s in students:
+            sid = s['id']
+            if sid not in students_by_id:
+                students_by_id[sid] = {
+                    k: v for k, v in s.items() if k not in ('attendance', 'scores')
+                }
+                students_by_id[sid]['attendance'] = {}
+                students_by_id[sid]['scores'] = {}
+            students_by_id[sid]['attendance'].update(s['attendance'])
+            students_by_id[sid]['scores'].update(s['scores'])
+
+    merged_students = list(students_by_id.values())
+
+    return session_keys, session_sign_map, session_score_map, merged_students, leave_data
