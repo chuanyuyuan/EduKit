@@ -642,9 +642,22 @@ def _draw_radar(stats, session_score_info=None):
         import numpy as np
 
         _cn_candidates = [f.name for f in font_manager.fontManager.ttflist
-                          if any(k in f.name.lower() for k in ("yahei", "simhei", "noto", "wenquanyi",
+                          if any(k in f.name.lower() for k in ("yahei", "simhei", "simsun", "noto", "wenquanyi",
                                                                "dengxian", "stxihei", "stsong",
                                                                "arial unicode"))]
+        if not _cn_candidates:
+            import os
+            _fallback_fonts = [
+                "C:/Windows/Fonts/msyh.ttc",
+                "C:/Windows/Fonts/msyhbd.ttc",
+                "C:/Windows/Fonts/simsun.ttc",
+                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            ]
+            for _p in _fallback_fonts:
+                if os.path.exists(_p):
+                    font_manager.fontManager.addfont(_p)
+                    _cn_candidates = [font_manager.FontProperties(fname=_p).get_name()]
+                    break
         rcParams = plt.rcParams
         rcParams['font.sans-serif'] = _cn_candidates + ['DejaVu Sans', 'sans-serif']
         rcParams['axes.unicode_minus'] = False
