@@ -95,12 +95,10 @@ def _render_network(result):
     for n in G.nodes():
         if G.degree(n) > 0:
             node_sizes.append(500 + 300 * G.degree(n))
-        elif verdicts.get(n) == "无图片":
-            node_sizes.append(500)
         else:
-            node_sizes.append(30)
+            node_sizes.append(500)
 
-    labels = {n: n for n in G.nodes() if G.degree(n) > 0 or verdicts.get(n) == "无图片"}
+    labels = {n: n for n in G.nodes()}
 
     edge_widths = [G[u][v]["ratio"] * 5 for u, v in G.edges()]
     edge_colors = [G[u][v]["ratio"] for u, v in G.edges()]
