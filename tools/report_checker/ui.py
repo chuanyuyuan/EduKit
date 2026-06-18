@@ -52,9 +52,22 @@ def _render_network(result):
     from matplotlib import rcParams
 
     _cn_candidates = [f.name for f in font_manager.fontManager.ttflist
-                      if any(k in f.name.lower() for k in ("yahei", "simhei", "noto", "wenquanyi",
+                      if any(k in f.name.lower() for k in ("yahei", "simhei", "simsun", "noto", "wenquanyi",
                                                            "dengxian", "stxihei", "stsong",
                                                            "arial unicode"))]
+    if not _cn_candidates:
+        import os
+        _fallback_fonts = [
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "C:/Windows/Fonts/simsun.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        ]
+        for _p in _fallback_fonts:
+            if os.path.exists(_p):
+                font_manager.fontManager.addfont(_p)
+                _cn_candidates = [font_manager.FontProperties(fname=_p).get_name()]
+                break
     rcParams['font.sans-serif'] = _cn_candidates + ['DejaVu Sans', 'sans-serif']
     rcParams['axes.unicode_minus'] = False
 
@@ -82,12 +95,10 @@ def _render_network(result):
     for n in G.nodes():
         if G.degree(n) > 0:
             node_sizes.append(500 + 300 * G.degree(n))
-        elif verdicts.get(n) == "无图片":
-            node_sizes.append(500)
         else:
-            node_sizes.append(30)
+            node_sizes.append(500)
 
-    labels = {n: n for n in G.nodes() if G.degree(n) > 0 or verdicts.get(n) == "无图片"}
+    labels = {n: n for n in G.nodes()}
 
     edge_widths = [G[u][v]["ratio"] * 5 for u, v in G.edges()]
     edge_colors = [G[u][v]["ratio"] for u, v in G.edges()]

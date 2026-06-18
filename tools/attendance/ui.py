@@ -283,7 +283,7 @@ def merge_page():
         show_results(buf, info)
 
     if not entries:
-        st.info("点击「添加文件」上传至少 2 个雨课堂考勤文件。")
+        st.info("点击「添加文件」上传至少 2 份雨课堂文件（单次课或批量导出均可）。")
 
 
 def _roster_diff(base_set, file_set):
@@ -316,7 +316,7 @@ def render_attendance_page():
 
 **上传后：**
 - 自动解析并分 tab 展示考勤明细、课堂表现得分和统计摘要
-- 支持单文件分析和多文件合并（如理论班 + 实验班 + 分组）
+- 支持单文件分析和多文件合并（任意组合单次课/批量导出文件）
 - 提供两种下载：考勤明细 Excel（颜色标注）和过程性成绩记载表（✓/✗/△）
 """, unsafe_allow_html=True)
 
