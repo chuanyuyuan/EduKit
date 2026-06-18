@@ -13,6 +13,3 @@ tools/learning_analytics/config_local.py
 
 # design docs (not part of source code)
 docs/
-
-# PhD application materials
-phd-application/

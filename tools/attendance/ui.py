@@ -3,14 +3,11 @@
 """
 import os
 import base64
-from io import BytesIO
-from collections import OrderedDict
-
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
 
-from .core import parse_file, generate_output, generate_process_score_sheet
+from .core import parse_file, generate_output, generate_process_score_sheet, merge_datasets
 
 DEMO_FILE = 'samples/sample_attendance.xlsx'
 
@@ -153,83 +150,150 @@ def single_page():
 
 
 def merge_page():
-    """合并模式页面"""
-    st.caption("自动按学号匹配合并，支持学生顺序不一致。若两文件名单有差异会提示错误。")
-    col1, col2 = st.columns(2)
-    with col1:
-        f1 = st.file_uploader("选择文件一", key="f1")
-    with col2:
-        f2 = st.file_uploader("选择文件二", key="f2")
+    """多文件合并模式 — 动态添加上传，逐个校验名单一致性。"""
+    MAX_FILES = 20
+    MAX_TOTAL_BYTES = 200 * 1024 * 1024
 
-    if f1 and f2:
-        errors = []
-        if not f1.name.endswith('.xlsx'):
-            errors.append(f'文件一格式不支持："{f1.name}"')
-        if not f2.name.endswith('.xlsx'):
-            errors.append(f'文件二格式不支持："{f2.name}"')
-        if errors:
-            st.error('\n'.join(errors))
-            st.stop()
+    if "merge_entries" not in st.session_state:
+        st.session_state.merge_entries = []
+    if "merge_counter" not in st.session_state:
+        st.session_state.merge_counter = 0
 
-        try:
-            status = st.status("正在解析...", expanded=True)
-            with status:
-                st.write("解析文件一...")
-                wb1 = load_workbook(f1, data_only=True)
-                sk1, ssm1, sscm1, students1, ld1 = parse_file(wb1)
-                wb1.close()
+    entries = st.session_state.merge_entries
+    to_remove = None
+    base_student_set = None  # 以第一个有效文件为基准
 
-                st.write("解析文件二...")
-                wb2 = load_workbook(f2, data_only=True)
-                sk2, ssm2, sscm2, students2, ld2 = parse_file(wb2)
-                wb2.close()
+    # ── 获取基准名单 ──
+    for entry in entries:
+        if entry.get("data"):
+            base_entry_students = entry["data"][3]
+            base_student_set = {(s["id"], s["name"]) for s in base_entry_students}
+            break
 
-                st.write("验证学生信息一致性...")
-                ids1 = {(s['id'], s['name']) for s in students1}
-                ids2 = {(s['id'], s['name']) for s in students2}
-                if ids1 != ids2:
-                    diff = []
-                    name1_by_id = {s['id']: s['name'] for s in students1}
-                    name_mismatch_ids = set()
-                    for s in students2:
-                        if s['id'] in name1_by_id and name1_by_id[s['id']] != s['name']:
-                            diff.append(f'  学号 {s["id"]} 姓名不一致：文件一为"{name1_by_id[s["id"]]}"，文件二为"{s["name"]}"')
-                            name_mismatch_ids.add(s['id'])
-                    for sid, sname in ids1 - ids2:
-                        if sid not in name_mismatch_ids:
-                            diff.append(f"  文件一有但文件二缺少：学号 {sid} {sname}")
-                    for sid, sname in ids2 - ids1:
-                        if sid not in name_mismatch_ids:
-                            diff.append(f"  文件二有但文件一缺少：学号 {sid} {sname}")
-                    raise ValueError("两个文件的学生名单不一致：\n" + "\n".join(diff))
+    # ── 逐行展示每个文件 ──
+    for i, entry in enumerate(entries):
+        uploaded = st.file_uploader(
+            f"文件 {i + 1}",
+            type="xlsx",
+            key=f"merge_upload_{entry['key']}",
+            label_visibility="collapsed",
+        )
 
-                st.write("合并数据...")
-                session_keys = sk1 + sk2
-                session_sign_map = OrderedDict(list(ssm1.items()) + list(ssm2.items()))
-                session_score_map = OrderedDict(list(sscm1.items()) + list(sscm2.items()))
-                stus2_by_id = {s['id']: s for s in students2}
-                students = []
-                for s1 in students1:
-                    s2 = stus2_by_id[s1['id']]
-                    students.append({
-                        'id': s1['id'],
-                        'name': s1['name'],
-                        'cls': s1['cls'],
-                        'attendance': {**s1['attendance'], **s2['attendance']},
-                        'scores': {**s1['scores'], **s2['scores']},
-                    })
-                leave_data = {**ld1, **ld2}
+        if uploaded:
+            file_id = (uploaded.name, uploaded.size)
+            if entry.get("file_id") != file_id:
+                entry["file_id"] = file_id
+                entry["name"] = uploaded.name
+                entry["size"] = uploaded.size
+                try:
+                    wb = load_workbook(uploaded, data_only=True)
+                    data = parse_file(wb)
+                    wb.close()
 
-                st.write("生成输出文件...")
-                buf, info = generate_output(session_keys, session_sign_map, session_score_map, students, leave_data)
-            status.update(label="解析完成", state="complete", expanded=False)
-            show_results(buf, info)
-        except ValueError as e:
-            st.error(str(e))
-        except Exception:
-            st.error("解析过程出现未知错误，请确认上传的是雨课堂批量导出的汇总数据表（.xlsx）。")
-    else:
-        st.info("请上传两个考勤文件开始合并分析。")
+                    students = data[3]
+                    student_set = {(s["id"], s["name"]) for s in students}
+                    if base_student_set is not None and student_set != base_student_set:
+                        diff = _roster_diff(base_student_set, student_set)
+                        raise ValueError(f"学生名单不一致：\n" + "\n".join(diff))
+
+                    entry["data"] = data
+                    entry["status"] = "valid"
+                    entry["error"] = None
+                except ValueError as e:
+                    entry["status"] = "error"
+                    entry["error"] = str(e)
+                    entry["data"] = None
+                except Exception:
+                    entry["status"] = "error"
+                    entry["error"] = "无法读取该文件，请确认上传的是有效的 .xlsx 格式文件。"
+                    entry["data"] = None
+                st.rerun()
+
+        # 信息行：文件名 + 状态 + 删除
+        if entry.get("name"):
+            info_cols = st.columns([3, 1, 0.5, 0.5])
+            size_kb = entry["size"] / 1024
+            size_str = f"{size_kb:.0f} KB" if size_kb < 1024 else f"{size_kb / 1024:.1f} MB"
+
+            with info_cols[0]:
+                st.markdown(f"📄 **{entry['name']}**  — {size_str}")
+            with info_cols[1]:
+                s = entry.get("status", "empty")
+                if s == "valid":
+                    st.markdown("✅ **通过**")
+                elif s == "error":
+                    st.markdown("❌ **不通过**")
+            with info_cols[3]:
+                if st.button("🗑", key=f"merge_del_{entry['key']}", help="移除此文件"):
+                    to_remove = i
+
+        if entry.get("error"):
+            st.error(entry["error"])
+
+    if to_remove is not None:
+        entries.pop(to_remove)
+        st.rerun()
+
+    # ── 添加文件按钮 ──
+    if len(entries) < MAX_FILES:
+        if st.button("+ 添加文件", use_container_width=True):
+            st.session_state.merge_counter += 1
+            entries.append({
+                "key": st.session_state.merge_counter,
+                "file_id": None,
+                "name": None,
+                "size": 0,
+                "status": "empty",
+                "error": None,
+                "data": None,
+            })
+            st.rerun()
+
+    # ── 总计信息 ──
+    valid_count = sum(1 for e in entries if e.get("status") == "valid")
+    total_size = sum(e.get("size", 0) for e in entries if e.get("name"))
+    total_mb = total_size / 1024 / 1024
+    over_size = total_size > MAX_TOTAL_BYTES
+
+    if entries:
+        color = "red" if over_size else "gray"
+        st.caption(
+            f'{valid_count}/{len(entries)} 个文件通过校验 | '
+            f'总计 <span style="color:{color};">{total_mb:.1f} MB</span>（上限 200 MB）',
+            unsafe_allow_html=True,
+        )
+
+    if over_size:
+        st.error("文件总大小超过 200 MB 限制，请移除部分文件。")
+
+    # ── 合并按钮 ──
+    can_merge = (
+        valid_count >= 2
+        and all(e.get("status") == "valid" for e in entries)
+        and not over_size
+    )
+    if st.button("🚀 开始合并", type="primary", use_container_width=True, disabled=not can_merge):
+        datasets = [e["data"] for e in entries if e.get("status") == "valid"]
+        with st.status("正在合并...", expanded=True) as status:
+            st.write("合并数据...")
+            sk, ssm, sscm, students, ld = merge_datasets(datasets)
+            st.write("生成输出文件...")
+            buf, info = generate_output(sk, ssm, sscm, students, ld)
+        status.update(label="合并完成", state="complete", expanded=False)
+        show_results(buf, info)
+
+    if not entries:
+        st.info("点击「添加文件」上传至少 2 个雨课堂考勤文件。")
+
+
+def _roster_diff(base_set, file_set):
+    """比较两个学生集合，返回差异描述列表。"""
+    diff = []
+    for sid, sname in base_set - file_set:
+        diff.append(f"  基准有但该文件缺少：学号 {sid} {sname}")
+    for sid, sname in file_set - base_set:
+        diff.append(f"  该文件有但基准缺少：学号 {sid} {sname}")
+    return diff
 
 
 def render_attendance_page():
@@ -252,7 +316,7 @@ def render_attendance_page():
 
 **上传后：**
 - 自动解析并分 tab 展示考勤明细、课堂表现得分和统计摘要
-- 支持单文件分析和两表合并（如理论班 + 实验班）
+- 支持单文件分析和多文件合并（如理论班 + 实验班 + 分组）
 - 提供两种下载：考勤明细 Excel（颜色标注）和过程性成绩记载表（✓/✗/△）
 """, unsafe_allow_html=True)
 
